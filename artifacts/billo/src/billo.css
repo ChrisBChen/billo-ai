@@ -94,6 +94,7 @@
 .sp-notice { display: flex; align-items: flex-start; gap: 10px; background: var(--sp-soft); color: #5d487a; padding: 14px 16px; border-radius: 12px; font-size: 14px; }
 .sp-notice.warning { color: #81522e; background: #faf1e8; }
 .sp-notice svg { margin-top: 1px; }
+.sp-receipt-disclaimer { color: var(--sp-muted); font-size: 12px; line-height: 1.45; }
 .sp-choice { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 76px; padding: 16px; text-align: left; color: var(--sp-ink); background: var(--sp-surface); border: 1px solid var(--sp-line); border-radius: 12px; }
 .sp-choice.selected { border-color: var(--sp-accent); background: var(--sp-soft); }
 .sp-choice .sp-small { color: var(--sp-muted); margin-top: 3px!important; }

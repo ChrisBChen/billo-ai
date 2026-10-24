@@ -1,5 +1,5 @@
 import { useRef, useState, type ChangeEvent } from 'react';
-import { ChevronRight, Info, LockKeyhole, ReceiptText, ScanLine, Upload } from 'lucide-react';
+import { ChevronRight, Info, ReceiptText, ScanLine, Upload } from 'lucide-react';
 import { useScanReceipt, type BillView, type ReceiptDraft } from '@workspace/api-client-react';
 import { Spinner } from '@/components/Chrome';
 import { errorMessage } from '@/lib/billo';
@@ -38,6 +38,6 @@ export function ReceiptEntry({ bill, onDraft }: { bill: BillView; onDraft: (d: R
         <button key={id} data-testid={`button-receipt-${id}`} className="sp-choice" onClick={on}><Icon size={24} /><div className="sp-grow"><h3>{label}</h3><p className="sp-small">{sub}</p></div><ChevronRight size={20} /></button>)}
     </>}
     {problem && <div className="sp-notice warning" role="alert"><Info size={17} />{problem}</div>}
-    <div className="sp-notice"><LockKeyhole size={17} />Your photo is sent to our AI provider to read the receipt. Billo does not save the image; only the receipt details you review and save are kept.</div>
+    <p className="sp-receipt-disclaimer">Your photo is sent to our AI provider to read the receipt. Billo does not save the image; only the receipt details you review and save are kept.</p>
   </div>;
 }

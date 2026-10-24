@@ -88,7 +88,7 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
   ];
   const titles: Record<Tab, [string, string]> = {
     items: closed ? ['Your items', 'Amounts are locked.'] : ['Claim your share', ''],
-    receipt: editing ? ['Review receipt', 'Check every line before saving.'] : isHost && !bill.receipt.items.length ? ['Add the receipt', 'Scan it or type it in.'] : isHost && !closed && !billReady(bill) ? ['Set split methods', 'Edit and pick $, %, or # per item.'] : ['Receipt', ''],
+    receipt: editing ? ['Review receipt', 'Check every line before saving.'] : isHost && !bill.receipt.items.length ? ['Add the receipt', ''] : isHost && !closed && !billReady(bill) ? ['Set split methods', 'Edit and pick $, %, or # per item.'] : ['Receipt', ''],
     share: ['Invite friends', 'Everyone at the table joins with this link.'],
     group: closed ? ['Group & payments', 'Who has reported paying.'] : ['Group', 'Who is in and who is done.'],
   };
