@@ -1,36 +1,218 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 1.0.0
 servers:
   - url: /api
-    description: Base API path
-tags:
-  - name: health
-    description: Health operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
-      tags: [health]
-      summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
           content:
             application/json:
+              schema: { $ref: "#/components/schemas/HealthStatus" }
+  /billo/bills:
+    post:
+      operationId: createBill
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillInput" }
+      responses:
+        "201":
+          description: Created with private HttpOnly session cookie
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillView" }
+  /billo/bills/{id}/invite:
+    get:
+      operationId: getInvite
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Public invitation without financial or participant information
+          content:
+            application/json:
               schema:
-                $ref: "#/components/schemas/HealthStatus"
+                $ref: "#/components/schemas/Invite"
+  /billo/bills/{id}/join:
+    post:
+      operationId: joinBill
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ParticipantInput" }
+      responses:
+        "200":
+          description: Joined with private HttpOnly session cookie
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillView" }
+  /billo/bills/{id}:
+    get:
+      operationId: getBill
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Authenticated snapshot; poll every 1500 ms for live updates
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillView" }
+    patch:
+      operationId: changeBill
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillChange" }
+      responses:
+        "200":
+          description: Updated; stale revision returns 409 with error string
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillView" }
+  /billo/bills/{id}/scan:
+    post:
+      operationId: scanReceipt
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReceiptImage" }
+      responses:
+        "200":
+          description: Extracted draft, not automatically saved. Host must review.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReceiptDraft" }
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
-        status:
-          type: string
-      required:
-        - status
-
+        status: { type: string }
+    BillInput:
+      type: object
+      required: [name, title]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 40 }
+        title: { type: string, minLength: 1, maxLength: 100 }
+        venmo: { type: string, maxLength: 40 }
+        zelle: { type: string, maxLength: 120 }
+    ParticipantInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 40 }
+    Invite:
+      type: object
+      required: [title, status]
+      properties:
+        title: { type: string }
+        status: { type: string, enum: [open, closed] }
+    Allocation:
+      type: object
+      required: [participantId, value]
+      properties:
+        participantId: { type: string }
+        value: { type: integer, minimum: 0, maximum: 100000000 }
+    BillItem:
+      type: object
+      required: [id, name, cents, mode, units, allocations]
+      properties:
+        id: { type: string }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        cents: { type: integer, minimum: 0, maximum: 1000000 }
+        mode: { type: string, enum: [equal, amount, percent, units] }
+        units: { type: integer, minimum: 1, maximum: 10000 }
+        allocations:
+          type: array
+          maxItems: 30
+          items: { $ref: "#/components/schemas/Allocation" }
+    ReceiptDraft:
+      type: object
+      required: [title, items, taxCents, tipMode, tipValue, adjustmentCents, totalCents, warnings]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 100 }
+        items:
+          type: array
+          maxItems: 100
+          items: { $ref: "#/components/schemas/BillItem" }
+        taxCents: { type: integer, minimum: 0, maximum: 1000000 }
+        tipMode: { type: string, enum: [amount, percent] }
+        tipValue: { type: integer, minimum: 0, maximum: 1000000, description: "Cents for amount; basis points for percent (2000 = 20%)." }
+        adjustmentCents: { type: integer, minimum: -1000000, maximum: 1000000 }
+        totalCents: { type: integer, minimum: 0, maximum: 10000000 }
+        warnings: { type: array, items: { type: string } }
+    BillChange:
+      type: object
+      required: [revision, action]
+      properties:
+        revision: { type: integer, minimum: 0 }
+        action: { type: string, enum: [receipt, mode, claim, allocate, finish, reopen, close, payment] }
+        receipt: { $ref: "#/components/schemas/ReceiptDraft" }
+        splitMode: { type: string, enum: [equal, itemized] }
+        itemId: { type: string }
+        claimed: { type: boolean }
+        itemMode: { type: string, enum: [equal, amount, percent, units] }
+        units: { type: integer, minimum: 1, maximum: 10000 }
+        allocations:
+          type: array
+          items: { $ref: "#/components/schemas/Allocation" }
+        finished: { type: boolean }
+        force: { type: boolean }
+        takeRemaining: { type: boolean }
+        paid: { type: boolean }
+    Participant:
+      type: object
+      required: [id, name, isPayer, finished, paid, itemCents, taxCents, tipCents, adjustmentCents, totalCents]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        isPayer: { type: boolean }
+        finished: { type: boolean }
+        paid: { type: boolean }
+        itemCents: { type: integer }
+        taxCents: { type: integer }
+        tipCents: { type: integer }
+        adjustmentCents: { type: integer }
+        totalCents: { type: integer }
+    BillView:
+      type: object
+      required: [id, title, status, revision, meId, payerId, splitMode, receipt, participants, unclaimedItemIds, venmo, zelle, venmoUrl, venmoWebUrl, paymentNote, outstandingCents]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        status: { type: string, enum: [open, closed] }
+        revision: { type: integer }
+        meId: { type: string }
+        payerId: { type: string }
+        splitMode: { type: string, enum: [equal, itemized] }
+        receipt: { $ref: "#/components/schemas/ReceiptDraft" }
+        participants: { type: array, items: { $ref: "#/components/schemas/Participant" } }
+        unclaimedItemIds: { type: array, items: { type: string } }
+        venmo: { type: string }
+        zelle: { type: string }
+        venmoUrl: { type: string }
+        venmoWebUrl: { type: string }
+        paymentNote: { type: string }
+        outstandingCents: { type: integer }
+    ReceiptImage:
+      type: object
+      required: [dataUrl]
+      properties:
+        dataUrl: { type: string, maxLength: 11500000, description: "JPEG/PNG/WebP data URL, at most 8 MB; processed transiently, never stored." }

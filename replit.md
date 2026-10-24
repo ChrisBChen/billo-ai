@@ -1,15 +1,17 @@
-# [Project name]
+# Billo
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Mobile-first bill splitting for friends at the table, with receipt extraction and external payment handoffs.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — API server (use its managed workflow for the assigned PORT)
+- `pnpm --filter @workspace/billo run dev` — frontend (use its managed workflow to supply PORT and BASE_PATH)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
+- Receipt scanning uses Replit AI Integrations for OpenAI. Credentials are managed in Secrets, never in client code.
 
 ## Stack
 
@@ -22,23 +24,33 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/billo/` — real app, served at `/`.
+- `artifacts/mockup-sandbox/src/components/mockups/split/` — preserved visual prototype, not the real application.
+- `lib/api-spec/openapi.yaml` — API contract and generated clients.
+- `lib/db/src/schema/bills.ts` — durable bills and participant sessions.
+- `artifacts/api-server/src/lib/billo-domain.ts` — integer-cent allocations, validation and finalization.
+- `artifacts/api-server/src/routes/billo.ts` — bill, join, mutation and receipt-scan routes.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- No signup is intentional: private HttpOnly session cookies authorize each browser's participation. A shared invitation must never grant payer access.
+- Receipt images are sent transiently to the AI provider for extraction, not saved by Billo. Store extracted data only after review.
+- A finalized bill is immutable apart from participants' self-reported paid status. External payments cannot be reversed by editing a bill.
+- Polling keeps participant views current; do not substitute local-only state for shared bill mutations.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Receipt camera/upload/manual entry, equal and itemized splitting, dollar/percentage/unit sharing, link and QR invitations, payer finalization, Venmo handoff, Zelle copyable details, and self-reported payment tracking.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+See `.agents/memory/product-scope.md` for product intent and constraints.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Zelle runs inside participating banks; do not invent a universal prefilled Zelle app link.
+- Venmo custom-scheme behavior depends on device and app installation. Keep web and copy fallbacks, and never treat opening a link as a confirmed payment.
+- API request bodies carry bill revisions. A 409 means another participant changed the bill; refresh before retrying.
 
 ## Pointers
 

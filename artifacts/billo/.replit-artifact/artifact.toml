@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Billo"
+description = "Live no-signup receipt splitting with friends, receipt OCR and external payment handoffs."
+version = "1.0.0"
+id = "artifacts/billo"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24988
+
+[services.development]
+run = "pnpm --filter @workspace/billo run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/billo", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/billo/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24988"
+BASE_PATH = "/"
