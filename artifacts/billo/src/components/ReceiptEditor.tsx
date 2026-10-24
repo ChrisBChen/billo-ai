@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Check, Info, Plus, Trash2 } from 'lucide-react';
+import { Check, Info, Plus, Trash2 } from 'lucide-react';
 import type { BillItem, BillView, ReceiptDraft } from '@workspace/api-client-react';
 import { Spinner } from '@/components/Chrome';
 import type { Change } from '@/hooks/use-bill-actions';
@@ -13,7 +13,7 @@ function fingerprint(bill: BillView) {
   return JSON.stringify([bill.title, r.items.map(i => [i.id, i.name, i.cents, i.mode, i.units]), r.taxCents, r.tipMode, r.tipValue, r.adjustmentCents, r.totalCents]);
 }
 
-export function ReceiptEditor({ bill, draft, source, send, pending, onCancel, onSaved }: { bill: BillView; draft: ReceiptDraft; source: string; send: Send; pending: boolean; onCancel: () => void; onSaved: () => void }) {
+export function ReceiptEditor({ bill, draft, send, pending, onCancel, onSaved }: { bill: BillView; draft: ReceiptDraft; send: Send; pending: boolean; onCancel: () => void; onSaved: () => void }) {
   const [revision, setRevision] = useState(bill.revision);
   const [print, setPrint] = useState(() => fingerprint(bill));
   const current = fingerprint(bill);
@@ -23,7 +23,6 @@ export function ReceiptEditor({ bill, draft, source, send, pending, onCancel, on
     // identical save in another session; genuine receipt changes need review.
     if (!stale) setRevision(bill.revision);
   }, [stale, bill.revision]);
-  const [title, setTitle] = useState(draft.title || bill.title);
   const [rows, setRows] = useState<Row[]>(() => draft.items.length ? draft.items.map(i => ({ id: i.id || newId(), name: i.name, price: centsText(i.cents) })) : [{ id: newId(), name: '', price: '' }]);
   const [tax, setTax] = useState(centsText(draft.taxCents));
   const [tipMode, setTipMode] = useState(draft.tipMode);
@@ -51,7 +50,7 @@ export function ReceiptEditor({ bill, draft, source, send, pending, onCancel, on
     return { items, subtotal, taxCents, tipNum, tipCents, autoBase, baseCents, adjustmentCents, totalCents };
   }, [rows, tax, tip, tipMode, base]);
   const rowErrors = parsed.items.map(i => !i.name.trim() ? 'Name needed' : i.cents === null ? 'Price needed' : i.cents > 1000000 ? 'Too large' : '');
-  const valid = !!title.trim() && rows.length > 0 && rowErrors.every(e => !e) && parsed.taxCents !== null && parsed.tipNum !== null && parsed.baseCents !== null;
+  const valid = rows.length > 0 && rowErrors.every(e => !e) && parsed.taxCents !== null && parsed.tipNum !== null && parsed.baseCents !== null;
 
   function update(id: string, patch: Partial<Row>) { setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r)); }
   function changeTipMode(mode: 'amount' | 'percent') {
@@ -68,15 +67,13 @@ export function ReceiptEditor({ bill, draft, source, send, pending, onCancel, on
       const prev = existing.get(i.id);
       return { id: i.id, name: i.name.trim(), cents: i.cents ?? 0, units: 1, mode: 'equal', allocations: prev?.allocations ?? [] };
     });
-    send({ revision, action: 'receipt', receipt: { title: title.trim(), items, taxCents: parsed.taxCents ?? 0, tipMode, tipValue: parsed.tipNum ?? 0, adjustmentCents: parsed.adjustmentCents, totalCents: parsed.totalCents, warnings: [] } }, { success: 'Receipt and tip confirmed', onSuccess: onSaved });
+    send({ revision, action: 'receipt', receipt: { title: draft.title.trim() || bill.receipt.title.trim() || bill.title.trim() || 'Receipt', items, taxCents: parsed.taxCents ?? 0, tipMode, tipValue: parsed.tipNum ?? 0, adjustmentCents: parsed.adjustmentCents, totalCents: parsed.totalCents, warnings: [] } }, { success: 'Receipt and tip confirmed', onSuccess: onSaved });
   }
 
   return <div className="sp-card sp-pad sp-stack sp-content">
     {stale && <div className="sp-notice warning" role="alert"><div>The receipt was changed in another session. Saving your draft replaces it; choices on items whose price changed will be cleared.<div className="sp-actions" style={{ marginTop: 8 }}><button className="sp-link" data-testid="button-keep-draft" onClick={keepDraft}>Keep my draft</button><button className="sp-link" data-testid="button-discard-draft" onClick={onCancel}>Cancel and reopen</button></div></div></div>}
-    <div className="sp-row sp-between"><span className="sp-small sp-muted">{source}</span><span className="sp-pill muted">Not saved yet</span></div>
-    {draft.warnings.length > 0 && <div className="sp-notice warning"><AlertTriangle size={17} /><div>{draft.warnings.map(w => <div key={w}>{w}</div>)}</div></div>}
+    <div className="sp-row sp-between sp-receipt-header"><h2>Receipt</h2><span className="sp-pill muted">Not saved yet</span></div>
     {hasClaims && <div className="sp-notice"><Info size={17} />Choices stay on unchanged items. Changing an item's price clears choices for that item.</div>}
-    <label className="sp-field">Bill name<input data-testid="input-receipt-title" value={title} maxLength={100} onChange={e => setTitle(e.target.value)} /></label>
     <div className="sp-receipt-items">{rows.map((r, idx) => <div key={r.id}>
       <div className="sp-receipt-row">
         <input data-testid={`input-item-name-${idx}`} aria-label={`Item ${idx + 1} name`} value={r.name} maxLength={120} placeholder="Item" onChange={e => update(r.id, { name: e.target.value })} />

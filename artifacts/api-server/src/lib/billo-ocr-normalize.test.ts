@@ -155,13 +155,25 @@ test("multiline names are cleaned without losing accents, case or meaningful pun
   const d = normalize({ restaurantName: " \n Le Café \t d’André\n & Sons  ", title: null });
   assert.equal(d.title, "Le Café d’André & Sons");
 });
-test("unreadable names preserve the existing bill name rather than replacing it with a placeholder", () => {
+test("unreadable names use the internal fallback without emitting a name-debug warning", () => {
   for (const name of [null, "", "   ", "Restaurant", "Unknown restaurant", "Guest Check", "Receipt", "Merchant Copy", "N/A"]) {
     const d = normalizeReceiptExtraction(raw({ restaurantName: name, title: null }), "Friday dinner");
     assert.equal(d.title, "Friday dinner", String(name));
     assert.equal(d.totalCents, 10800);
-    assert.match(d.warnings.join(" "), /Restaurant name could not be read/);
+    assert.ok(!d.warnings.some(w => /restaurant name/i.test(w)));
   }
+});
+test("OCR name-debug warnings are hidden while actionable receipt warnings remain", () => {
+  const d = normalize({
+    restaurantName: null,
+    title: null,
+    warnings: [
+      "Restaurant name could not be read reliably. Enter it below before confirming.",
+      "Review the printed total against the line items.",
+    ],
+  });
+  assert.ok(!d.warnings.some(w => /restaurant name/i.test(w)));
+  assert.ok(d.warnings.includes("Review the printed total against the line items."));
 });
 test("legacy title-only model responses still preserve actual restaurant names", () => {
   const d = normalize({ title: "  O'Malley's \n Grill  " });
@@ -178,10 +190,10 @@ test("an overlong OCR name is bounded without failing an otherwise usable receip
   assert.equal(d.title, name.trim().slice(0, 100));
   assert.equal(d.totalCents, 10800);
 });
-test("no name or fallback still yields a valid review draft with an explicit warning", () => {
+test("no name or fallback still yields a valid review draft without an OCR name warning", () => {
   const d = normalizeReceiptExtraction(raw({ restaurantName: null, title: null }), "");
   assert.equal(d.title, "Receipt");
-  assert.match(d.warnings.join(" "), /Restaurant name could not be read/);
+  assert.ok(!d.warnings.some(w => /restaurant name/i.test(w)));
 });
 test("payer confirmation saves the detected name to both bill and receipt views", () => {
   const draft = normalize({ restaurantName: "Lucia's Trattoria", title: null });

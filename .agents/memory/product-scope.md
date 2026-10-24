@@ -35,6 +35,10 @@ Joining and editing must remain stable while other people act; live updates must
 
 Confirmation means approval of one's selected items, not a changing provisional amount. Other people joining, selecting a shared item, or confirming must not clear existing confirmations.
 
+The Summary box's green state means everyone has confirmed, not that the bill is ready to close.
+
+**Why:** The user explicitly wants green even when unclaimed items remain. Keep unclaimed counts and close-bill eligibility separate from confirmation color.
+
 **Why:** The user found repeated reconfirmation and changing personal amounts disruptive, then explicitly required both payer and friend My items views to withhold personal dollar shares until the payer closes the bill.
 
 **How to apply:** Only one's own selection edits clear one's own confirmation. My items is selection-only for both roles until closure: show original item prices, not personal totals, per-item dollar shares, or breakdowns—even if everyone has confirmed. The payer alone sees Summary and may see provisional amounts there while the bill remains open; do not repeat totals across tabs. Explicit receipt changes or the payer asking everyone to reconfirm remain distinct actions.
@@ -61,7 +65,13 @@ Automatic gratuities belong in gratuity, not fees or purchase items. Include act
 
 **Why:** The user repeatedly reported missed auto-gratuities and unrelated totals, and asked for item totals as the fallback with a receipt-total cross-check.
 
-**How to apply:** Treat the printed total as a check, not permission to invent a tip or adjustment. Only actual labelled charges count; suggested-tip tables do not. Missing or unreadable tips default to zero for payer review, and discrepancies must be visible before confirmation.
+**How to apply:** Treat the printed total as a check, not permission to invent a tip or adjustment. Only actual labelled charges count; suggested-tip tables do not. Missing or unreadable tips default to zero for payer review, and the payer can edit the extracted values directly. Do not show OCR confidence, mismatch, or amount/tip warning copy in the review UI.
+
+Restaurant and bill names are not part of the user-facing Billo experience.
+
+**Why:** The user later asked to remove restaurant and bill names entirely from what payers and friends see, overriding the earlier name-entry request.
+
+**How to apply:** Do not display or request a restaurant/bill name in Billo pages, receipt review, invite/share text, or payment details. Keep required internal bill titles hidden. Suppress OCR warning copy in the review UI; keep extracted items, tax, tip, and total visible and editable. Keep the concise notice that receipt images are sent to the OCR provider.
 
 Short invite URLs must be native to Billo, not Bitly or another external shortening provider.
 

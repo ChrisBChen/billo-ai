@@ -16,7 +16,7 @@ export function PaymentSheet({ bill, send, pending, notify, onClose }: { bill: B
     try { await navigator.clipboard.writeText(text); notify(msg); } catch { notify('Copy unavailable. Select the text instead.'); }
   }
   return <Sheet title={`Pay ${payer.name}`} description="The bill is closed. Your amount is final." onClose={onClose}>
-    <div className="sp-payment-hero"><Avatar name={payer.name} index={avatarIndex(bill, payer.id)} /><p className="sp-small sp-muted">You owe {payer.name}</p><div className="sp-big-amount sp-money" data-testid="text-amount-owed">{money(amount)}</div><p className="sp-small sp-muted">{bill.title}</p></div>
+    <div className="sp-payment-hero"><Avatar name={payer.name} index={avatarIndex(bill, payer.id)} /><p className="sp-small sp-muted">You owe {payer.name}</p><div className="sp-big-amount sp-money" data-testid="text-amount-owed">{money(amount)}</div></div>
     {amount <= 0 ? <div className="sp-notice"><Info size={17} />You have nothing to pay on this bill.</div> : <>
       <div className="sp-payment-options">
         {bill.venmo && <button className="sp-payment-option" aria-pressed={method === 'venmo'} data-testid="button-method-venmo" onClick={() => setMethod('venmo')}><span className="sp-payment-symbol">V</span><span className="sp-grow"><strong>Venmo</strong><small>@{bill.venmo}</small></span></button>}

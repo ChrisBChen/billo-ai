@@ -1,0 +1,119 @@
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&display=swap");
+
+/* Billo's semantic tokens, copied from the app theme. */
+:root {
+  --background: 265 30% 96%;
+  --foreground: 260 25% 18%;
+  --card: 280 100% 99%;
+  --card-foreground: 260 25% 18%;
+  --border: 270 22% 91%;
+}
+
+.dark {
+  --background: 265 30% 96%;
+  --foreground: 260 25% 18%;
+  --card: 280 100% 99%;
+  --card-foreground: 260 25% 18%;
+  --border: 270 22% 91%;
+}
+
+:root {
+  color-scheme: light;
+  --sp-bg: #f6f1e7;
+  --sp-surface: #fffcf5;
+  --sp-ink: #17151c;
+  --sp-muted: #625d6a;
+  --sp-line: #e3dccd;
+  --sp-success: #1d6b55;
+  --sp-success-bg: #d5f2e6;
+  --sp-mint: #a8e8cf;
+  --sp-warn: #8a4210;
+  --sp-warn-bg: #ffe8d6;
+  --sp-shadow: #17151c26;
+}
+
+:root[data-theme="dark"],
+.dark {
+  color-scheme: dark;
+  --sp-bg: #141217;
+  --sp-surface: #1e1b23;
+  --sp-ink: #f4efe4;
+  --sp-muted: #aaa3b4;
+  --sp-line: #322d3a;
+  --sp-success: #8fe3c4;
+  --sp-success-bg: #16362d;
+  --sp-mint: #8fe3c4;
+  --sp-warn: #ffc49a;
+  --sp-warn-bg: #3a2416;
+  --sp-shadow: #00000066;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--sp-bg);
+  color: var(--sp-ink);
+  font-family: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.split-v2 {
+  min-height: 100vh;
+  padding: 16px;
+  color: var(--sp-ink);
+}
+
+.status-preview {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+}
+
+.status-sample-label {
+  margin: 0 0 5px;
+  color: var(--sp-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.sp-payment-overview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 82px;
+  padding: 17px;
+  border-radius: 16px;
+  background: var(--sp-mint);
+  color: #10241d;
+}
+
+.sp-payment-overview strong {
+  font-size: 25px;
+  font-weight: 650;
+}
+
+.sp-payment-overview small {
+  display: block;
+  margin-bottom: 3px;
+  color: #2c4a3f;
+  font-size: 13px;
+}
+
+.sp-payment-overview > div:last-child {
+  text-align: right;
+}
+
+.sp-payment-overview.confirmation-pending {
+  background: var(--sp-warn-bg);
+  color: var(--sp-warn);
+}
+
+.sp-payment-overview.confirmation-pending small {
+  color: var(--sp-warn);
+}

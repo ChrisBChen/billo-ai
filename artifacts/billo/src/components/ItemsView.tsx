@@ -40,12 +40,10 @@ export function ItemsView({ bill, send, pending, onBreakdown, onPrimary, onAddRe
           {!items.length ? <div className="sp-pad sp-stack sp-center"><ReceiptText size={30} style={{ margin: '0 auto' }} color="var(--sp-accent)" /><h2>No items yet</h2>{isHost ? <button className="sp-button" data-testid="button-add-receipt" onClick={onAddReceipt}>Add the receipt</button> : <p className="sp-muted">The payer is adding the receipt. It appears here automatically.</p>}</div>
           : !ready ? <div className="sp-pad sp-stack sp-center" data-testid="status-setup"><Settings2 size={30} style={{ margin: '0 auto' }} color="var(--sp-accent)" /><h2>{isHost ? 'Confirm the receipt' : 'Almost ready'}</h2>{isHost ? <><p className="sp-muted">Review the receipt and tip first.</p><button className="sp-button" data-testid="button-setup-receipt" onClick={onAddReceipt}>Review receipt</button></> : <p className="sp-muted">Waiting for the payer to confirm.</p>}</div>
           : bill.splitMode === 'equal' ? <div className="sp-pad sp-stack"><Users size={27} color="var(--sp-accent)" /><h2>Split equally, {bill.participants.length} {bill.participants.length === 1 ? 'way' : 'ways'}</h2><p className="sp-muted">Everyone pays the same share, including tax and tip.{showAmounts && <> Your share is {money(me?.totalCents ?? 0)}.</>}</p></div>
-          : items.map(item => { const own = isClaimedBy(item, bill.meId); return <div key={item.id} className={`sp-item ${own ? 'sp-selected' : ''}`} data-testid={`row-item-${item.id}`}>
-              <button className="sp-item-main" disabled={locked || pending} aria-pressed={own} aria-label={`${own ? 'Deselect' : 'Select'} ${item.name}`} data-testid={`button-claim-${item.id}`} onClick={() => tap(item)}>
-                <span className="sp-checkbox">{own && <Check size={16} strokeWidth={2.5} />}</span><span className="sp-item-title">{item.name}</span><span className="sp-money">{money(item.cents)}</span>
-              </button>
-              <div className="sp-item-meta"><span>{label(item)}</span></div>
-            </div>; })}
+          : items.map(item => { const own = isClaimedBy(item, bill.meId); return <button key={item.id} type="button" className={`sp-item sp-item-main ${own ? 'sp-selected' : ''}`} disabled={locked || pending || !ready} aria-pressed={own} aria-label={`${own ? 'Deselect' : 'Select'} ${item.name}`} aria-describedby={`item-meta-${item.id}`} data-testid={`button-claim-${item.id}`} onClick={() => tap(item)}>
+              <span className="sp-checkbox">{own && <Check size={16} strokeWidth={2.5} />}</span><span className="sp-item-title">{item.name}</span><span className="sp-money">{money(item.cents)}</span>
+              <span className="sp-item-meta" id={`item-meta-${item.id}`}><span>{label(item)}</span></span>
+            </button>; })}
         </div>
         {!closed && <p className="sp-list-note">Tap what you ate. Shared items split equally between everyone who selects them. Tax and tip follow your share.</p>}
       </div>

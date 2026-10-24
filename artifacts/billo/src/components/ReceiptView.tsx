@@ -7,7 +7,7 @@ export function ReceiptView({ bill, canEdit, onEdit }: { bill: BillView; canEdit
   const sub = subtotalOf(r.items), tip = tipCentsOf(sub, r.tipMode, r.tipValue);
   if (!r.items.length) return <div className="sp-card sp-pad sp-stack sp-center sp-content"><div className="sp-state-symbol"><ReceiptText size={26} /></div><h2>No receipt yet</h2><p className="sp-muted">The payer is adding the receipt. Items appear here automatically.</p></div>;
   return <div className="sp-card sp-pad sp-content">
-    <div className="sp-row sp-between" style={{ marginBottom: 6 }}><h3>{r.title}</h3>{canEdit && <button className="sp-link" data-testid="button-edit-receipt" onClick={onEdit}><Pencil size={16} />{bill.receiptConfirmed ? 'Edit' : 'Review & confirm'}</button>}</div>
+    {canEdit && <div className="sp-row sp-between" style={{ marginBottom: 6 }}><button className="sp-link" data-testid="button-edit-receipt" onClick={onEdit}><Pencil size={16} />{bill.receiptConfirmed ? 'Edit' : 'Review & confirm'}</button></div>}
     {r.items.map(i => <div className="sp-ro-row" key={i.id}><span>{i.name}</span><span className="sp-money">{money(i.cents)}</span></div>)}
     <div className="sp-totals" style={{ marginTop: 10 }}>
       <div className="sp-row"><span>Subtotal</span><span className="sp-money">{money(sub)}</span></div>

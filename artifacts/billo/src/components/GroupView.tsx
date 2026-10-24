@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { CircleCheck, Plus, Clock3, LockKeyhole, RotateCcw, Utensils } from 'lucide-react';
+import { CircleCheck, CheckCheck, ListChecks, Plus, Clock3, LockKeyhole, RotateCcw, Utensils } from 'lucide-react';
 import type { BillView } from '@workspace/api-client-react';
 import { Avatar } from '@/components/Chrome';
 import type { Change } from '@/hooks/use-bill-actions';
@@ -12,9 +12,20 @@ export function GroupView({ bill, send, pending, onClose }: { bill: BillView; se
   const confirmed = bill.participants.filter(p => p.finished).length;
   const paidCount = others.filter(p => p.paid).length;
   const unclaimed = bill.splitMode === 'itemized' ? bill.receipt.items.filter(i => bill.unclaimedItemIds.includes(i.id)) : [];
+  const allConfirmed = bill.participants.length > 0 && confirmed === bill.participants.length;
   return <div className="sp-stack sp-content">
     {closed ? <div className="sp-payment-overview" data-testid="status-payments"><div><small>Still owed to {bill.participants.find(p => p.isPayer)?.name}</small><strong className="sp-money">{money(bill.outstandingCents)}</strong></div><div><small>Reported paid</small><strong>{paidCount} of {others.length}</strong></div></div>
-      : <div className="sp-payment-overview" data-testid="status-confirmed"><div><small>Confirmed</small><strong>{confirmed} of {bill.participants.length}</strong></div><div><small>Unclaimed</small><strong>{bill.splitMode === 'equal' ? 'None' : unclaimed.length}</strong></div></div>}
+      : <div className={`sp-payment-overview sp-confirmation-overview${allConfirmed ? '' : ' confirmation-pending'}`} data-testid="status-confirmed" role="group" aria-label={`Confirmed ${confirmed} of ${bill.participants.length}; ${bill.splitMode === 'equal' ? 'no unclaimed items' : `${unclaimed.length} unclaimed items`}`}>
+        <div className="sp-overview-stat">
+          <span className="sp-overview-icon" aria-hidden="true"><CheckCheck size={19} strokeWidth={2.2} /></span>
+          <div><small>Confirmed</small><strong className="sp-overview-value">{confirmed}<span className="sp-overview-total"> of {bill.participants.length}</span></strong></div>
+        </div>
+        <span className="sp-overview-divider" aria-hidden="true" />
+        <div className="sp-overview-stat">
+          <span className="sp-overview-icon" aria-hidden="true"><ListChecks size={19} strokeWidth={2.2} /></span>
+          <div><small>Unclaimed</small><strong className="sp-overview-value">{bill.splitMode === 'equal' ? 'None' : unclaimed.length}</strong></div>
+        </div>
+      </div>}
     <div className="sp-card sp-pad" style={{ paddingTop: 4, paddingBottom: 4 }}>
       {bill.participants.map((p, i) => <div className="sp-person-row" key={p.id} data-testid={`row-person-${p.id}`}>
         <Avatar name={p.name} index={i} />

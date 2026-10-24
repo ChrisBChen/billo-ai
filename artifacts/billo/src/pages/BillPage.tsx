@@ -84,15 +84,14 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
     { tab: 'share', label: 'Invite friends', icon: Share2 },
   ];
   const visibleNav = nav.filter(({ tab: t }) => isHost || t !== 'group');
-  const titles: Record<Tab, [string, string]> = {
-    items: closed ? ['Your items', ''] : ['Claim your share', ''],
-    receipt: editing ? ['Review receipt', 'Check every line before confirming.'] : isHost && !bill.receipt.items.length ? ['Add the receipt', ''] : isHost && !closed && !billReady(bill) ? ['Confirm the receipt', 'Review the items and tip.'] : ['Receipt', ''],
-    share: ['Invite friends', ''],
-    group: closed ? ['Summary & payments', ''] : ['Summary', ''],
-  };
+  const subtitle = tab === 'receipt'
+    ? editing ? ''
+      : isHost && !bill.receipt.items.length ? ''
+        : isHost && !closed && !billReady(bill) ? 'Review the items and tip.' : ''
+    : '';
 
   if (!isHost && reviewRequired) return <>
-    <Topbar context={bill.title} /><OfflineBanner stale={stale} />
+    <Topbar /><OfflineBanner stale={stale} />
     <div className="sp-layout" style={{ display: 'block', maxWidth: 680 }}><main className="sp-card sp-pad sp-stack">
       <LockKeyhole size={24} /><h1>Waiting for the payer</h1>
       <p>The receipt and tip need to be confirmed before anyone can choose items.</p>
@@ -100,22 +99,19 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
   </>;
 
   return <>
-    <Topbar context={<>{bill.title}{closed && <> · <LockKeyhole size={13} style={{ display: 'inline', verticalAlign: '-1px' }} /> Closed</>}</>} />
+    <Topbar context={closed ? <><LockKeyhole size={13} style={{ display: 'inline', verticalAlign: '-1px' }} /> Closed</> : undefined} />
     <OfflineBanner stale={stale} />
     <div className="sp-layout">
       <aside className="sp-rail">
-        <div className="sp-restaurant"><Utensils size={25} /><div><h3>{bill.title}</h3></div></div>
         {!reviewRequired && <nav aria-label="Bill navigation">{visibleNav.map(({ tab: t, label, icon: Icon }) => <button key={t} data-testid={`nav-${t}`} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}><Icon size={18} />{label}</button>)}</nav>}
       </aside>
       <main className="sp-main">
         <div key={tab} className={`sp-page ${tab === 'items' ? 'sp-select-page' : ''}`}>
-          <div className="sp-heading">
-            <h1>{titles[tab][0]}</h1>{titles[tab][1] && <p>{titles[tab][1]}</p>}
-          </div>
+          {subtitle && <div className="sp-heading"><p>{subtitle}</p></div>}
           {!reviewRequired && <nav className="sp-mobile-tabs" aria-label="Bill navigation">{visibleNav.map(({ tab: t, label }) => <button key={t} data-testid={`tab-${t}`} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}>{label}</button>)}</nav>}
           {tab === 'items' && <ItemsView bill={bill} send={send} pending={pending} onBreakdown={() => setModal('breakdown')} onPrimary={primary} onAddReceipt={() => go('receipt')} />}
           {tab === 'receipt' && (editing
-            ? <ReceiptEditor key={editing.source + editing.draft.items.length} bill={bill} draft={editing.draft} source={editing.source} send={send} pending={pending} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); go('share'); }} />
+            ? <ReceiptEditor key={editing.source + editing.draft.items.length} bill={bill} draft={editing.draft} send={send} pending={pending} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); go('share'); }} />
             : isHost && !closed && !bill.receipt.items.length ? <ReceiptEntry bill={bill} onDraft={(draft, source) => setEditing({ draft, source })} />
             : <ReceiptView bill={bill} canEdit={isHost && !closed} onEdit={() => setEditing({ draft: bill.receipt, source: 'Saved receipt' })} />)}
           {tab === 'share' && <ShareView bill={bill} notify={notify} onSetup={() => go('receipt')} />}

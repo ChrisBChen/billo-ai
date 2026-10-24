@@ -65,15 +65,15 @@
 .sp-avatar.sp-a3 { background: #c8b7df; color: #473365; }
 .sp-avatar-group { display: flex; }
 .sp-avatar-group .sp-avatar { border: 2px solid var(--sp-surface); margin-right: -5px; }
-.sp-item { border-bottom: 1px solid var(--sp-line); padding: 12px 16px 8px; }
+.sp-item { border: 0; border-bottom: 1px solid var(--sp-line); padding: 12px 16px 8px; }
 .sp-item:last-child { border-bottom: 0; }
 .sp-item.sp-selected { background: #f4effa; }
-.sp-item-main { padding: 2px 0; width: 100%; min-height: 46px; display: flex; align-items: center; gap: 12px; background: transparent; border: 0; color: var(--sp-ink); text-align: left; }
+.sp-item-main { padding: 12px 16px 8px; width: 100%; display: grid; grid-template-columns: 25px minmax(0,1fr) auto; grid-template-rows: minmax(46px,auto) auto; align-items: center; gap: 0 12px; background: transparent; color: var(--sp-ink); text-align: left; user-select: none; -webkit-user-select: none; }
 .sp-item-title { flex: 1; min-width: 0; font-weight: 560; font-size: 16px; line-height: 1.4; }
 .sp-item-main > .sp-money { font-size: 16px; font-weight: 600; }
 .sp-checkbox { width: 25px; height: 25px; border: 1.5px solid #bdb3cb; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .sp-selected .sp-checkbox, .sp-checkbox.checked { background: var(--sp-accent); border-color: var(--sp-accent); color: #fdfaf6; }
-.sp-item-meta { display: flex; gap: 8px; justify-content: space-between; align-items: center; margin-left: 37px; }
+.sp-item-meta { grid-column: 2 / -1; display: flex; gap: 8px; justify-content: space-between; align-items: center; }
 .sp-item-meta > span { font-size: 13px; line-height: 1.4; color: var(--sp-muted); }
 .sp-split-action { min-height: 44px; border: 0; background: transparent; display: inline-flex; gap: 2px; align-items: center; color: var(--sp-accent); font-size: 14px!important; padding: 6px 0 6px 8px; white-space: nowrap; }
 .sp-list-note { margin: 12px 4px!important; font-size: 13px; color: var(--sp-muted); }
@@ -94,6 +94,10 @@
 .sp-sticky-footer { display: none; }
 .sp-field { display: flex; flex-direction: column; gap: 7px; font-size: 14px; font-weight: 560; }
 .sp-field small { font-size: 13px; font-weight: 400; color: var(--sp-muted); }
+.sp-payment-or { display: flex; align-items: center; gap: 12px; color: var(--sp-muted); font-size: 12px; line-height: 1; }
+.sp-payment-or::before, .sp-payment-or::after { content: ''; flex: 1; height: 1px; background: var(--sp-line); }
+.sp-receipt-header { padding-bottom: 13px; border-bottom: 1px solid var(--sp-line); }
+.sp-receipt-header h2 { margin: 0; font-size: 21px; font-weight: 750; letter-spacing: -.5px; line-height: 1.2; }
 .sp-notice { display: flex; align-items: flex-start; gap: 10px; background: var(--sp-soft); color: #5d487a; padding: 14px 16px; border-radius: 12px; font-size: 14px; }
 .sp-notice.warning { color: #81522e; background: #faf1e8; }
 .sp-notice svg { margin-top: 1px; }
@@ -227,8 +231,7 @@
   .sp-heading > p { font-size: 15px; }
   .sp-card-head { padding: 10px 15px; }
   .sp-item { padding: 11px 14px 6px; }
-  .sp-item-main { gap: 10px; }
-  .sp-item-meta { margin-left: 35px; }
+  .sp-item-main { gap: 0 10px; }
   .sp-item-meta > span { font-size: 13px; }
   .sp-item-title { font-size: 16px; }
   .sp-pad { padding: 18px 16px; }
@@ -351,6 +354,56 @@ html, body { background: var(--sp-bg); }
 .sp-payment-status.paid { color: var(--sp-success); background: var(--sp-success-bg); }
 .sp-payment-overview { background: var(--sp-mint); color: #10241d; }
 .sp-payment-overview small { color: #2c4a3f; }
+.sp-payment-overview.confirmation-pending { background: var(--sp-warn-bg); color: var(--sp-warn); }
+.sp-payment-overview.confirmation-pending small { color: var(--sp-warn); }
+.sp-payment-overview.sp-confirmation-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  min-height: 96px;
+  padding: 18px 20px;
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  border-radius: 18px;
+  transition: background-color 180ms ease;
+}
+.sp-confirmation-overview .sp-overview-stat {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+.sp-overview-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--sp-surface) 62%, transparent);
+  color: currentColor;
+}
+.sp-payment-overview .sp-overview-value {
+  display: block;
+  font-size: 29px;
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: -0.8px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.sp-overview-total {
+  font-size: 16px;
+  font-weight: 550;
+  letter-spacing: -0.2px;
+  opacity: 0.76;
+}
+.sp-overview-divider {
+  width: 1px;
+  height: 44px;
+  background: color-mix(in srgb, currentColor 19%, transparent);
+}
+.sp-payment-overview.sp-confirmation-overview > div:last-child { text-align: left; }
 .sp-share-card { background: var(--sp-soft); border: 1.5px solid var(--sp-lavender); }
 .sp-qr-real { background: #fffcf5; }
 .sp-qr i.on { background: #17151c; }
@@ -359,5 +412,13 @@ html, body { background: var(--sp-bg); }
 .sp-rail nav button.active { background: var(--sp-soft); color: var(--sp-ink); box-shadow: inset 3px 0 0 var(--sp-orange); }
 .sp-state-symbol { background: var(--sp-mint); color: #10241d; }
 .sp-pill { color: var(--sp-accent); }
-@media(max-width:600px) { .sp-topbar .sp-context { max-width: 40vw; } .split-v2 h1 { font-size: 29px; } }
+@media(max-width:600px) {
+  .sp-topbar .sp-context { max-width: 40vw; }
+  .split-v2 h1 { font-size: 29px; }
+  .sp-payment-overview.sp-confirmation-overview { gap: 11px; padding: 16px 14px; min-height: 88px; }
+  .sp-confirmation-overview .sp-overview-stat { grid-template-columns: 32px minmax(0, 1fr); gap: 8px; }
+  .sp-overview-icon { width: 32px; height: 32px; border-radius: 11px; }
+  .sp-payment-overview .sp-overview-value { font-size: 25px; }
+  .sp-overview-total { font-size: 14px; }
+}
 @media(prefers-reduced-motion:reduce) { .sp-skeleton { animation: none!important; } }

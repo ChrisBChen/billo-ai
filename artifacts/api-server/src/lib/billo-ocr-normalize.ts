@@ -53,7 +53,6 @@ export function normalizeReceiptExtraction(input: unknown, fallbackTitle = "Rece
   const warnings: string[] = [];
   const detectedName = restaurantName(raw.restaurantName) || restaurantName(raw.title);
   const title = detectedName || fallbackTitle.trim().replace(/\s+/g, " ").slice(0, 100) || "Receipt";
-  if (!detectedName) warnings.push("Restaurant name could not be read reliably. Review or edit the bill name before confirming.");
   if (raw.currency && raw.currency.toUpperCase() !== "USD") {
     return ScanReceiptResponse.parse({
       title, items: [], taxCents: 0, tipMode: "amount",
@@ -126,7 +125,7 @@ export function normalizeReceiptExtraction(input: unknown, fallbackTitle = "Rece
   const draft = ScanReceiptResponse.safeParse({
     title, items, taxCents: tax, tipMode: "amount", tipValue: tip,
     adjustmentCents: adjustment, totalCents: total,
-    warnings: [...new Set([...warnings, ...(raw.warnings ?? [])])].slice(0, 20),
+    warnings: [...new Set([...warnings, ...(raw.warnings ?? [])].filter(w => !/\b(?:restaurant|merchant|business|bill)\s+name\b/i.test(w)))].slice(0, 20),
   });
   if (!draft.success) throw new BillError(422, "The receipt amounts could not be reconciled safely. Review the receipt manually.");
   return draft.data;

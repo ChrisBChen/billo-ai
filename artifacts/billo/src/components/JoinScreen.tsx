@@ -32,7 +32,7 @@ export function JoinScreen({ id, onJoined }: { id: string; onJoined: () => void 
   }
   const closed = invite.data?.status === 'closed';
   return <div className="sp-content">
-    <div className="sp-heading"><span className="sp-context">You are invited</span><h1 data-testid="text-invite-title">{invite.data?.title}</h1></div>
+    <div className="sp-heading"><span className="sp-context">You are invited</span></div>
     <form className="sp-card sp-pad sp-stack" onSubmit={submit}>
       {closed && <div className="sp-notice warning"><LockKeyhole size={17} />This bill is already closed. Ask the payer for your amount.</div>}
       <label className="sp-field">Your name<input data-testid="input-join-name" value={name} maxLength={40} autoFocus autoComplete="given-name" onChange={e => setName(e.target.value)} placeholder="First name" /></label>

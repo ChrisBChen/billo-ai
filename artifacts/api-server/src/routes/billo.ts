@@ -37,12 +37,12 @@ const send = (res: import("express").Response, s: BillState, me: string, status 
 
 router.post("/billo/bills", createLimiter, async (req, res): Promise<void> => {
   const parsed = CreateBillBody.safeParse(req.body);
-  requireThat(parsed.success, "Enter your name, bill name and payment details.");
+  requireThat(parsed.success, "Enter your name and payment details.");
   const input = parsed.data;
   const name = input.name.trim(), title = input.title.trim();
   const venmo = (input.venmo ?? "").trim().replace(/^@/, "");
   const zelle = (input.zelle ?? "").trim();
-  requireThat(name && title, "Your name and bill name are required.");
+  requireThat(name && title, "Your name is required.");
   requireThat(venmo || zelle, "Add a Venmo username or Zelle email/US phone number.");
   requireThat(!venmo || /^[A-Za-z0-9_-]{5,30}$/.test(venmo), "Enter a valid Venmo username (5–30 letters, numbers, hyphens or underscores).");
   requireThat(!zelle || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(zelle) || /^(?:1)?\d{10}$/.test(zelle.replace(/[+()\s.-]/g, "")), "Enter a valid Zelle email or US phone number.");

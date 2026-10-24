@@ -40,7 +40,7 @@ export function ThemeToggle() {
   return <button type="button" className="sp-theme-toggle" onClick={toggle} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} aria-pressed={dark} title={dark ? 'Light mode' : 'Dark mode'} data-testid="button-theme-toggle">{dark ? <Sun size={18} /> : <Moon size={18} />}</button>;
 }
 export function Topbar({ context }: { context?: ReactNode }) {
-  return <header className="sp-topbar"><Link href="/" className="sp-brand" aria-label="Billo home, start a new receipt" data-testid="link-home" style={{ color: 'inherit', textDecoration: 'none' }}><img className="sp-brand-logo" src={`${import.meta.env.BASE_URL}billo-logo.png`} alt="" width={36} height={36} />Billo</Link><div className="sp-topbar-end">{context && <span className="sp-context">{context}</span>}<ThemeToggle /></div></header>;
+  return <header className="sp-topbar"><Link href="/" className="sp-brand" aria-label="billo home, start a new receipt" data-testid="link-home" style={{ color: 'inherit', textDecoration: 'none' }}><img className="sp-brand-logo" src={`${import.meta.env.BASE_URL}billo-logo.png`} alt="" width={36} height={36} />billo</Link><div className="sp-topbar-end">{context && <span className="sp-context">{context}</span>}<ThemeToggle /></div></header>;
 }
 export function Avatar({ name, index }: { name: string; index: number }) {
   return <span className={`sp-avatar sp-a${index % 4}`} aria-hidden="true">{initial(name)}</span>;

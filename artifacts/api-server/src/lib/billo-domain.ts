@@ -94,7 +94,7 @@ export function unclaimedItems(s: BillState) {
 export function view(s: BillState, meId: string): BillView {
   const participants = (s.finalParticipants ?? calculate(s)).map(p => ({ ...p, paid: s.participants.find(m => m.id === p.id)!.paid }));
   const mine = participants.find(p => p.id === meId)!;
-  const paymentNote = `Billo: ${s.title}`.slice(0, 140);
+  const paymentNote = "Billo split";
   const canPay = s.status === "closed" && meId !== s.payerId && mine.totalCents > 0 && !!s.venmo;
   const params = new URLSearchParams({ txn: "pay", recipients: s.venmo, amount: (mine.totalCents / 100).toFixed(2), note: paymentNote });
   return {
