@@ -14,3 +14,9 @@ Initial participation requires no account creation. Payments occur outside the a
 **Why:** The user explicitly specified these boundaries in the original idea.
 
 **How to apply:** Do not introduce signup gates or in-app money movement without a new request. Finishing selections must not imply verified payment.
+
+The user anticipates the great majority of usage on phones and wants this product to take cues from Google or Apple native applications, with only essential explanatory copy.
+
+**Why:** Their feedback on the initial prototype was that it contained too much decorative text and needed simpler, cleaner mobile interactions.
+
+**How to apply:** Prioritize readable mobile text, generous touch targets, and easy numeric entry. Preserve useful short instructions, not long thematic headings. Item splits should support dollar, percentage, and unit allocations as well as equal shares; tip entry should support percentages.

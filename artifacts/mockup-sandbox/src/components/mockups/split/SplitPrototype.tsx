@@ -1,23 +1,32 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, CircleHelp, Clock3, Copy, CreditCard, Heart, Link2, LockKeyhole, Plus, ReceiptText, ScanLine, Share2, ShieldCheck, Sparkles, Trash2, Upload, Users, Utensils, X } from 'lucide-react';
-import './_group.css';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ArrowRight, Check, ChevronDown, ChevronRight, CircleCheck, Clock3, Copy, Divide, Info, Link2, LockKeyhole, Minus, Plus, ReceiptText, ScanLine, Share2, Trash2, Upload, Users, Utensils, X } from 'lucide-react';
+import './SplitPrototype.css';
 
 type Page = 'select' | 'setup' | 'entry' | 'review' | 'method' | 'share' | 'join' | 'waiting' | 'dashboard' | 'final';
-type Item = { id: number; name: string; cents: number; claims: number[] };
+type SplitMode = 'equal' | 'amount' | 'percent' | 'units';
+type TipMode = 'amount' | 'percent';
+type Item = { id: number; name: string; cents: number; claims: number[]; mode?: SplitMode; values?: number[]; units?: number };
+type SplitDraft = { id: number; mode: SplitMode; people: boolean[]; values: string[]; units: string };
+type ModalKind = 'person' | 'close' | 'payment' | 'tip' | 'breakdown' | null;
+
 const initialItems: Item[] = [
-  { id: 1, name: 'Burrata & stone fruit', cents: 1800, claims: [0, 1, 2, 3] },
-  { id: 2, name: 'Spicy rigatoni', cents: 2600, claims: [1] },
-  { id: 3, name: 'Wood-fired branzino', cents: 3400, claims: [0] },
-  { id: 4, name: 'Wild mushroom pizza', cents: 2400, claims: [2, 3] },
-  { id: 5, name: 'Little gem salad', cents: 1400, claims: [] },
-  { id: 6, name: 'Orange wine · 2 glasses', cents: 2800, claims: [0, 1] },
-  { id: 7, name: 'Spicy margarita', cents: 1500, claims: [2] },
-  { id: 8, name: 'Sparkling lemonade', cents: 700, claims: [3] },
-  { id: 9, name: 'Olive oil cake', cents: 1200, claims: [] },
+  { id: 1, name: 'Burrata & stone fruit', cents: 1800, claims: [0, 1, 2, 3], units: 1 },
+  { id: 2, name: 'Spicy rigatoni', cents: 2600, claims: [1], units: 1 },
+  { id: 3, name: 'Wood-fired branzino', cents: 3400, claims: [0], units: 1 },
+  { id: 4, name: 'Wild mushroom pizza', cents: 2400, claims: [2, 3], units: 8 },
+  { id: 5, name: 'Little gem salad', cents: 1400, claims: [], units: 1 },
+  { id: 6, name: 'Orange wine · 2 glasses', cents: 2800, claims: [0, 1], units: 2, mode: 'units', values: [1, 1, 0, 0] },
+  { id: 7, name: 'Spicy margarita', cents: 1500, claims: [2], units: 1 },
+  { id: 8, name: 'Sparkling lemonade', cents: 700, claims: [3], units: 1 },
+  { id: 9, name: 'Olive oil cake', cents: 1200, claims: [], units: 1 },
 ];
-const pageNames: Record<Page, string> = { select: 'Choose your items', setup: '1 · Start a bill', entry: '2 · Add receipt', review: '3 · Review receipt', method: '4 · Split settings', share: '5 · Invite friends', join: '6 · Join the table', waiting: '8 · Finished & waiting', dashboard: '9 · Payer dashboard', final: '10 · Locked breakdown' };
+const pageNames: Record<Page, string> = { setup: 'Start a bill', entry: 'Add receipt', review: 'Receipt & tip', method: 'Split method', share: 'Invite friends', join: 'Join bill', select: 'Choose items', waiting: 'Waiting', dashboard: 'Group', final: 'Final amounts' };
 const pageOrder: Page[] = ['setup', 'entry', 'review', 'method', 'share', 'join', 'select', 'waiting', 'dashboard', 'final'];
+const modeNames: Record<SplitMode, string> = { equal: 'Equal', amount: 'Amount', percent: 'Percent', units: 'Units' };
 const money = (cents: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
+const numeric = (text: string) => Math.max(0, Number.isFinite(Number(text)) ? Number(text) : 0);
+const centsFrom = (text: string) => Math.round(numeric(text) * 100);
+
 function distribute(total: number, weights: number[]) {
   const sum = weights.reduce((a, b) => a + b, 0);
   if (!sum) return weights.map(() => 0);
@@ -28,85 +37,391 @@ function distribute(total: number, weights: number[]) {
   for (let n = 0; n < remainder; n++) result[order[n % order.length].i]++;
   return result;
 }
+function itemShares(item: Item) {
+  if (!item.claims.length) return [0, 0, 0, 0];
+  if (item.mode === 'amount' && item.values) return item.values;
+  if ((item.mode === 'percent' || item.mode === 'units') && item.values) return distribute(item.cents, item.values);
+  return distribute(item.cents, [0, 1, 2, 3].map(i => item.claims.includes(i) ? 1 : 0));
+}
 function allocations(items: Item[], tax: number, tip: number, equal: boolean) {
-  const bases = [0, 0, 0, 0, 0];
-  for (const item of items) {
-    if (equal) distribute(item.cents, [1, 1, 1, 1]).forEach((c, i) => { bases[i] += c; });
-    else if (!item.claims.length) bases[4] += item.cents;
-    else distribute(item.cents, item.claims.map(() => 1)).forEach((c, i) => { bases[item.claims[i]] += c; });
+  const subtotal = items.reduce((sum, item) => sum + item.cents, 0);
+  const bases = equal ? [...distribute(subtotal, [1, 1, 1, 1]), 0] : [0, 0, 0, 0, 0];
+  if (!equal) for (const item of items) {
+    if (!item.claims.length) bases[4] += item.cents;
+    else itemShares(item).forEach((c, i) => { bases[i] += c; });
   }
   const weights = bases.some(value => value > 0) ? bases : [1, 1, 1, 1, 0];
   const taxes = distribute(tax, weights), tips = distribute(tip, weights);
   return bases.map((base, i) => ({ base, tax: taxes[i], tip: tips[i], total: base + taxes[i] + tips[i] }));
 }
+function makeDraft(item: Item, preferredMode?: SplitMode): SplitDraft {
+  const mode = preferredMode ?? item.mode ?? 'equal';
+  const people = [0, 1, 2, 3].map(i => item.claims.includes(i));
+  const weights = item.claims.length ? itemShares(item) : [0, 0, 0, 0];
+  const values = mode === item.mode && item.values
+    ? item.values.map(n => String(mode === 'amount' || mode === 'percent' ? n / 100 : n))
+    : mode === 'amount' ? weights.map(n => (n / 100).toFixed(2))
+    : mode === 'percent' ? distribute(10000, weights.some(Boolean) ? weights : people.map(Number)).map(n => String(n / 100))
+    : mode === 'units' ? distribute(item.units ?? 1, people.map(Number)).map(String)
+    : people.map(p => p ? '1' : '0');
+  return { id: item.id, mode, people, values, units: String(item.units ?? 1) };
+}
+function Sheet({ title, description, children, footer, onClose }: { title: string; description?: string; children: ReactNode; footer?: ReactNode; onClose: () => void }) {
+  const ref = useRef<HTMLElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const before = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    ref.current?.focus();
+    function keydown(event: KeyboardEvent) {
+      if (event.key === 'Escape') closeRef.current();
+      if (event.key !== 'Tab') return;
+      const nodes = Array.from(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]') ?? []);
+      const first = nodes[0], last = nodes[nodes.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === ref.current)) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }
+    document.addEventListener('keydown', keydown);
+    return () => { document.body.style.overflow = overflow; document.removeEventListener('keydown', keydown); before?.focus(); };
+  }, []);
+  return <div className="sp-backdrop" onClick={onClose}>
+    <section ref={ref} tabIndex={-1} className="sp-sheet" role="dialog" aria-modal="true" aria-label={title} onClick={e => e.stopPropagation()}>
+      <div className="sp-sheet-head"><div className="sp-row sp-between"><h2>{title}</h2><button className="sp-icon" aria-label="Close dialog" onClick={onClose}><X size={22} /></button></div>{description && <p>{description}</p>}</div>
+      <div className="sp-sheet-body">{children}</div>
+      {footer && <div className="sp-sheet-footer">{footer}</div>}
+    </section>
+  </div>;
+}
+
 export function SplitPrototype() {
-  const [page, setPage] = useState<Page>('select');
+  const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const initialPage = params.get('screen');
+  const [page, setPage] = useState<Page>(pageOrder.includes(initialPage as Page) ? initialPage as Page : 'select');
   const [items, setItems] = useState<Item[]>(initialItems);
   const [names, setNames] = useState(['Jamie', 'Alex', 'Morgan', 'Riley']);
   const [active, setActive] = useState(1);
   const [payer, setPayer] = useState(0);
   const [tax, setTax] = useState(1584);
-  const [tip, setTip] = useState(3560);
+  const [tipMode, setTipMode] = useState<TipMode>('percent');
+  const [tipValue, setTipValue] = useState('20');
   const [equal, setEqual] = useState(false);
   const [finished, setFinished] = useState([false, false, true, true]);
   const [locked, setLocked] = useState(false);
   const [venmo, setVenmo] = useState('@jamie-demo');
   const [zelle, setZelle] = useState('jamie@example.com');
   const [joinName, setJoinName] = useState('Alex');
-  const [modal, setModal] = useState<'person' | 'close' | 'payment' | null>(null);
-  const [shareItem, setShareItem] = useState<number | null>(null);
+  const [modal, setModal] = useState<ModalKind>(params.get('sheet') === 'tip' ? 'tip' : null);
+  const [splitDraft, setSplitDraft] = useState<SplitDraft | null>(() => {
+    if (params.get('sheet') !== 'split') return null;
+    const mode = params.get('mode') as SplitMode;
+    const item = initialItems.find(x => x.id === Number(params.get('item'))) ?? initialItems[0];
+    return makeDraft(item, Object.keys(modeNames).includes(mode) ? mode : undefined);
+  });
+  const [tipDraft, setTipDraft] = useState({ mode: 'percent' as TipMode, value: '20' });
   const [toast, setToast] = useState('');
   const [paymentPerson, setPaymentPerson] = useState(1);
-  const [entrySource, setEntrySource] = useState('Sample restaurant receipt');
-  const subtotal = items.reduce((s, x) => s + x.cents, 0), total = subtotal + tax + tip;
+  const [entrySource, setEntrySource] = useState('Sample receipt');
+  const subtotal = items.reduce((s, x) => s + x.cents, 0);
+  const tip = tipMode === 'percent' ? Math.round(subtotal * numeric(tipValue) / 100) : centsFrom(tipValue);
+  const total = subtotal + tax + tip;
   const amounts = allocations(items, tax, tip, equal), mine = amounts[active];
   const unclaimed = equal ? [] : items.filter(x => !x.claims.length);
-  const currentShareItem = items.find(x => x.id === shareItem);
+  const currentItem = items.find(x => x.id === splitDraft?.id);
   const confirmed = finished.filter(Boolean).length;
   const demoUrl = typeof window === 'undefined' ? '' : window.location.href.split('?')[0];
-  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(''), 3500); return () => clearTimeout(t); }, [toast]);
-  function navigate(next: Page) { setPage(next); window.scrollTo({ top: 0, behavior: 'instant' }); }
-  function updateItem(id: number, patch: Partial<Item>) { if (locked) return; setItems(prev => prev.map(x => x.id === id ? { ...x, ...patch } : x)); setFinished([false, false, false, false]); }
-  function toggleClaim(item: Item, person: number) { if (locked) return; updateItem(item.id, { claims: item.claims.includes(person) ? item.claims.filter(p => p !== person) : [...item.claims, person].sort() }); }
-  async function copy(text: string, message: string) { try { await navigator.clipboard.writeText(text); setToast(message); } catch { setToast('Clipboard unavailable. Select and copy the details shown.'); } }
-  async function nativeShare() { if (navigator.share) { try { await navigator.share({ title: 'Split · local prototype', text: 'Sample dinner only. This link opens the prototype, not a shared bill.', url: demoUrl }); } catch { setToast('Share dismissed. You can copy the prototype link instead.'); } } else await copy(demoUrl, 'Prototype link copied. No shared session is created.'); }
-  function finish() { setFinished(prev => prev.map((v, i) => i === active ? true : v)); navigate('waiting'); }
-  function closeBill(takeRemaining: boolean) { if (unclaimed.length && !takeRemaining) return; if (takeRemaining) setItems(prev => prev.map(x => !x.claims.length ? { ...x, claims: [payer] } : x)); setLocked(true); setFinished([true, true, true, true]); setModal(null); navigate('final'); }
-  const avatar = (i: number) => <span className={`split-avatar a${i}`}>{names[i].slice(0, 1)}</span>;
-  const title = (eyebrow: string, heading: ReactNode, description: string) => <><div className="split-breadcrumb"><span>{eyebrow}</span><ChevronRight size={12} /><span>Lido, Brooklyn</span></div><div className="split-title"><h1>{heading}</h1><p>{description}</p></div></>;
-  const totalLines = <><div className="row"><span>Food & drinks</span><span className="money">{money(mine.base)}</span></div><div className="row"><span>Your tax</span><span className="money">{money(mine.tax)}</span></div><div className="row"><span>Your tip</span><span className="money">{money(mine.tip)}</span></div></>;
-  return <div className="split-app">
-    <header className="split-top"><div className="split-logo"><Utensils size={28} strokeWidth={2.1} />split<span>.</span></div><div className="split-prototype"><span>PROTOTYPE</span><select aria-label="Explore prototype screens" value={page} onChange={e => navigate(e.target.value as Page)}>{pageOrder.map(p => <option key={p} value={p}>{p === 'select' ? '7 · Choose items' : pageNames[p]}</option>)}</select></div></header>
-    <div className="split-layout">
-      <aside className="split-rail"><div className="split-dinner"><Utensils className="table-mark" size={108} strokeWidth={.8} /><div className="eyebrow">Good food. Good company.</div><p className="serif">One lovely dinner.<br />Four happy plates.</p><div className="split-people">{names.map((_, i) => <span key={i}>{avatar(i)}</span>)}<span>Table for four</span></div></div><div><div className="eyebrow muted rail-label">Tonight’s table</div><nav style={{ marginTop: 12 }}><button className={['select', 'waiting', 'join'].includes(page) ? 'active' : ''} onClick={() => navigate(locked ? 'final' : 'select')}><Utensils size={17} />My part of the bill</button><button className={['entry', 'review', 'setup', 'method'].includes(page) ? 'active' : ''} onClick={() => navigate('review')}><ReceiptText size={17} />The receipt</button><button className={page === 'share' ? 'active' : ''} onClick={() => navigate('share')}><Link2 size={17} />Invite the table</button><button className={page === 'dashboard' ? 'active' : ''} onClick={() => navigate('dashboard')}><Users size={17} />Payer’s view</button>{locked && <button onClick={() => navigate('final')}><LockKeyhole size={17} />Final breakdown</button>}</nav></div><div className="split-rail-note"><ShieldCheck size={17} /><span>No sign-up. No money moves here.<br />Local sample bill · not live.</span></div></aside>
-      <main className="split-main"><div key={page} className="split-page-animate">
-      {subtotal === 0 && <div className="split-notice warm" style={{ marginBottom: 20 }}><ReceiptText size={19} /><div><strong>{items.length ? 'Your items have no price yet.' : 'A fresh receipt, ready for dinner.'}</strong><p>Add a priced item in receipt review. Until then, any tax & tip are shared equally among four friends.</p><button className="split-text-btn" onClick={() => navigate('review')}>Edit the receipt <ArrowRight size={13} /></button></div></div>}
-      {page === 'select' && <>
-        {title('Your part of the evening', <>A little less math.<br /><em>A little more afterglow.</em></>, 'Tap what you had. Shared a plate? Split that too.')}
-        <div className="split-mobile-context"><span className="eyebrow muted">Lido · Dinner for four</span><div className="split-people">{names.map((_, i) => <span key={i}>{avatar(i)}</span>)}</div></div>
-        {locked && <div className="split-notice warm" style={{ marginBottom: 16 }}><LockKeyhole size={18} /><span>This bill is locked. <button className="split-text-btn" onClick={() => navigate('final')}>See final amounts <ArrowRight size={13} /></button></span></div>}
-        <div className="split-selection-layout"><div><div className="split-items"><div className="split-items-head"><h3>{equal ? 'Splitting everything equally' : 'What was yours?'}</h3><button className="split-you" onClick={() => setModal('person')}>{avatar(active)}{names[active]}{active === payer ? ' · payer' : ' · you'}<ChevronDown size={12} /></button></div>
-        {equal ? <div className="stack" style={{ padding: 24 }}><Users size={32} color="var(--red)" /><h2>Four seats. Four equal parts.</h2><p className="muted">Every item, tax, and tip is divided equally. Any extra cents are assigned in table order.</p><button className="split-text-btn" onClick={() => navigate('method')}>Change split method <ArrowRight size={14} /></button></div> : items.map(item => <div className={`split-item ${item.claims.includes(active) ? 'selected' : ''}`} key={item.id}><button aria-label={`${item.claims.includes(active) ? 'Unclaim' : 'Claim'} ${item.name}`} aria-pressed={item.claims.includes(active)} disabled={locked} className="split-check" onClick={() => toggleClaim(item, active)}>{item.claims.includes(active) && <Check size={16} strokeWidth={3} />}</button><div className="split-item-info"><h3>{item.name}</h3><div className="small">{item.claims.length ? <><span className="tiny-avatars">{item.claims.map(i => <span key={i}>{avatar(i)}</span>)}</span><span className="claim-label">{item.claims.length > 1 ? `Shared by ${item.claims.length}${item.claims.includes(active) ? ' · including you' : ''}` : item.claims[0] === active ? 'All yours' : names[item.claims[0]]}</span></> : <span className="claim-label">Up for grabs</span>}</div></div><div className="split-item-price"><div className="money">{money(item.cents)}</div><button disabled={locked} className="split-share-item" onClick={() => setShareItem(item.id)}><Users size={11} />{item.claims.length > 1 ? 'Edit sharing' : 'Share item'}</button></div></div>)}</div><p className="split-item-note"><CircleHelp size={14} />{equal ? 'Equal shares include the whole bill.' : 'Shared items are divided evenly. Tax & tip follow your share.'}</p></div>
-        <aside><div className="split-summary"><div className="row between"><span className="eyebrow">Your little total</span><Heart size={16} color="var(--red)" /></div><div className="total money serif"><sup>$</sup>{(mine.total / 100).toFixed(2)}</div><span className="small muted">Tax & tip included · provisional</span><div className="summary-lines">{totalLines}</div><button className="split-btn full" disabled={locked} onClick={finish}>That’s my share <Check size={16} /></button><p className="footnote">Confirms your items, not a payment.</p></div><p className="split-bill-total">Whole table <strong className="money">{money(total)}</strong><br />{equal ? 'Split equally, down to the cent.' : `${unclaimed.length} items still up for grabs`}</p><button className="split-text-btn" style={{ display: 'flex', margin: '6px auto' }} onClick={() => navigate('review')}>Peek at the receipt <ArrowRight size={13} /></button></aside></div>
-        <div className="split-bottom-mobile"><div><div className="small">Your share · incl. tax & tip</div><div className="money">{money(mine.total)}</div></div><button className="split-btn" disabled={locked} onClick={finish}>That’s my share <Check size={17} /></button></div>
-      </>}
-      {page === 'setup' && <>{title('Start a bill', <>The best part?<br /><em>No awkward math.</em></>, 'You covered dinner. Let’s work out everyone’s part.')}<div className="split-panel stack"><label className="split-field">Your name<input value={names[payer]} onChange={e => setNames(n => n.map((v, i) => i === payer ? e.target.value : v))} placeholder="Your first name" disabled={locked} /></label><div><h3>How can friends pay you back?</h3><p className="small muted" style={{ marginTop: 5 }}>Optional details. Payments happen outside Split.</p></div><label className="split-field">Venmo username<input value={venmo} disabled={locked} onChange={e => setVenmo(e.target.value)} placeholder="@yourname" /></label><label className="split-field">Zelle email or phone<input value={zelle} disabled={locked} onChange={e => setZelle(e.target.value)} placeholder="you@example.com" /></label><div className="split-notice"><ShieldCheck size={19} /><span>Just a name. No account, no card details, no fuss. This prototype stores nothing after a refresh.</span></div><button className="split-btn full" disabled={!names[payer].trim()} onClick={() => navigate('entry')}>Let’s add dinner <ArrowRight size={17} /></button></div></>}
-      {page === 'entry' && <>{title('Add a receipt', <>Dinner’s done.<br /><em>Bring the bill.</em></>, 'Pick a demo entry method, then review every number.')}<div className="split-panel stack"><div className="split-notice warm"><Sparkles size={18} /><span>Demo only. Camera and upload do not open or process files. Both load an editable sample receipt.</span></div>{[{ icon: ScanLine, name: 'Try the camera demo', detail: 'Preview a receipt capture flow' }, { icon: Upload, name: 'Try the upload demo', detail: 'Use our sample dinner receipt' }, { icon: ReceiptText, name: 'Enter the receipt manually', detail: 'Edit, add, or remove sample line items' }].map(({ icon: Icon, name, detail }) => <button className="split-choice" key={name} onClick={() => { setEntrySource(name.includes('manually') ? 'Manual entry · prefilled sample' : 'Demo sample · not scanned'); navigate('review'); }}><span className="choice-icon"><Icon size={22} /></span><div className="spacer"><h3>{name}</h3><p>{detail}</p></div><ChevronRight size={18} /></button>)}</div></>}
-      {page === 'review' && <>{title('The receipt', <>Every bite.<br /><em>Every number.</em></>, 'A quick once-over before the table joins in.')}<div className="split-panel stack"><div className="row between"><div><h2>Lido, Brooklyn</h2><span className="small muted">{entrySource}</span></div><ReceiptText size={27} color="var(--red)" /></div>{locked && <div className="split-notice"><LockKeyhole size={17} />This receipt is locked. All amounts are final.</div>}<div className="stack" style={{ gap: 9 }}>{items.map(x => <div className="split-receipt-row" key={x.id}><input aria-label="Item name" value={x.name} disabled={locked} onChange={e => updateItem(x.id, { name: e.target.value })} /><input type="number" step=".01" min="0" aria-label={`Price of ${x.name}`} value={(x.cents / 100).toFixed(2)} disabled={locked} onChange={e => updateItem(x.id, { cents: Math.max(0, Math.round(Number(e.target.value) * 100)) })} /><button className="split-icon-btn" disabled={locked} aria-label={`Remove ${x.name}`} onClick={() => { setItems(prev => prev.filter(i => i.id !== x.id)); setFinished([false, false, false, false]); }}><Trash2 size={15} /></button></div>)}</div><button className="split-text-btn" disabled={locked} onClick={() => { setItems(prev => [...prev, { id: Date.now(), name: 'New item', cents: 0, claims: [] }]); setFinished([false, false, false, false]); }}><Plus size={15} />Add a line item</button><div className="split-totals"><div className="row"><span>Subtotal</span><strong className="money">{money(subtotal)}</strong></div><div className="row"><label htmlFor="split-tax">Tax ($)</label><input id="split-tax" className="split-input split-amount-input" type="number" min="0" step=".01" disabled={locked} value={(tax / 100).toFixed(2)} onChange={e => { setTax(Math.max(0, Math.round(Number(e.target.value) * 100))); setFinished([false, false, false, false]); }} /></div><div className="row"><label htmlFor="split-tip">Tip ($)</label><input id="split-tip" className="split-input split-amount-input" type="number" min="0" step=".01" disabled={locked} value={(tip / 100).toFixed(2)} onChange={e => { setTip(Math.max(0, Math.round(Number(e.target.value) * 100))); setFinished([false, false, false, false]); }} /></div><div className="row grand"><span>Table total</span><span className="money">{money(total)}</span></div></div><button className="split-btn full" onClick={() => navigate(locked ? 'final' : 'method')}>{locked ? 'See final breakdown' : 'Looks right. Let’s split.'}<ArrowRight size={16} /></button></div></>}
-      {page === 'method' && <>{title('Make it yours', <>Your table.<br /><em>Your way to split.</em></>, 'Keep it simple, or let everyone pick what they had.')}<div className="split-panel stack">{[false, true].map(value => <button key={String(value)} disabled={locked} className={`split-choice ${equal === value ? 'chosen' : ''}`} onClick={() => { setEqual(value); setFinished([false, false, false, false]); }}><span className="choice-icon">{value ? <Users size={22} /> : <Utensils size={22} />}</span><div className="spacer"><h3>{value ? 'Split equally' : 'Pick your own items'}</h3><p>{value ? `About ${money(Math.floor(total / 4))} each, including tax & tip` : 'Everyone claims their bites & shared plates'}</p></div>{equal === value && <Check size={19} color="var(--red)" />}</button>)}<label className="split-field">Who covered the restaurant bill?<select value={payer} disabled={locked} onChange={e => setPayer(Number(e.target.value))}>{names.map((n, i) => <option key={i} value={i}>{n}</option>)}</select></label><div className="split-notice"><CreditCard size={18} /><span>Friends will owe {names[payer]} their share. {names[payer]}’s own portion stays in the breakdown, with no self-payment.</span></div><button className="split-btn full" onClick={() => navigate('share')}>Bring everyone to the table <ArrowRight size={16} /></button></div></>}
-      {page === 'share' && <>{title('Pull up a chair', <>Good company.<br /><em>One little link.</em></>, 'A preview of how your friends would join the bill.')}<div className="split-panel stack"><div className="split-ticket"><span className="eyebrow">Lido · Table for four</span><h2>Dinner tastes better together.</h2><div className="split-qr" role="img" aria-label="Decorative sample QR, not scannable">{Array.from({ length: 169 }, (_, i) => { const x = i % 13, y = Math.floor(i / 13); const finder = (ox: number, oy: number) => x >= ox && x < ox + 5 && y >= oy && y < oy + 5 && (x === ox || x === ox + 4 || y === oy || y === oy + 4 || (x === ox + 2 && y === oy + 2)); return <i key={i} className={finder(0, 0) || finder(8, 0) || finder(0, 8) || (x > 5 && y > 5 && (i * 17 % 7 < 3)) ? 'on' : ''} />; })}</div><span className="small">Sample QR · decorative, not scannable</span></div><div className="split-link-box"><Link2 size={17} /><span className="spacer">split.local / lido-dinner · sample</span><button className="split-icon-btn" aria-label="Copy prototype URL" onClick={() => copy(demoUrl, 'Prototype URL copied. It does not create a shared session.')}><Copy size={17} /></button></div><button className="split-btn full" onClick={nativeShare}><Share2 size={16} />Share prototype link</button><div className="split-notice"><CircleHelp size={18} /><span>Sharing opens this local prototype, not a real shared bill. Friends’ activity below is simulated on this screen only.</span></div><button className="split-text-btn" onClick={() => navigate('join')}>Try joining as a friend <ArrowRight size={15} /></button></div></>}
-      {page === 'join' && <>{title('You’re invited', <>There’s a seat<br /><em>with your name on it.</em></>, `${names[payer]} covered dinner at Lido. Let’s find your share.`)}<div className="split-panel stack"><div className="row"><div className="split-people">{names.map((_, i) => <span key={i}>{avatar(i)}</span>)}</div><span className="small muted">Four friends · {money(total)} total</span></div><label className="split-field">What should we call you?<input value={joinName} maxLength={24} onChange={e => setJoinName(e.target.value)} placeholder="Your first name" /></label><p className="small muted">This demo uses Alex’s seat. Enter any name to try the participant view.</p><button className="split-btn full" disabled={!joinName.trim()} onClick={() => { setNames(prev => prev.map((n, i) => i === 1 ? joinName.trim() : n)); setActive(1); navigate(locked ? 'final' : 'select'); }}>Join the table <ArrowRight size={17} /></button><div className="split-lock-line"><ShieldCheck size={14} />No account. No payment details needed.</div></div></>}
-      {page === 'waiting' && <>{title('Selections confirmed', <>Your part is done.<br /><em>Stay for the company.</em></>, 'Finished means your choices are confirmed. Not paid.')}<div className="split-panel stack"><div className="split-center"><div className="split-state-symbol"><Check size={33} /></div><div className="eyebrow muted">{names[active]}’s provisional share</div><h2 className="split-hero-amount money">{money(mine.total)}</h2><p className="small muted">This can change if shared plates change.</p></div><div className="split-status-list">{names.map((n, i) => <div className="split-person-row" key={i}>{avatar(i)}<span className="spacer">{n}{i === payer ? ' · payer' : ''}</span><span className={`split-badge ${finished[i] ? 'done' : ''}`}>{finished[i] ? <Check size={11} /> : <Clock3 size={11} />}{finished[i] ? 'Finished' : 'Selecting'}</span></div>)}</div><div className="split-notice"><Clock3 size={18} /><span>{locked ? 'The payer has locked the bill.' : `Waiting for ${names[payer]} to close the table. ${unclaimed.length ? `${unclaimed.length} items still need a home.` : 'All items have a home.'}`}<br />Sample activity only; no live sync.</span></div><button className="split-btn full secondary" onClick={() => { if (!locked) setFinished(prev => prev.map((v, i) => i === active ? false : v)); navigate(locked ? 'final' : 'select'); }}>{locked ? 'See final breakdown' : 'Back to my items'}<ArrowRight size={16} /></button><button className="split-text-btn" onClick={() => navigate('dashboard')}>Explore the payer’s view <ArrowRight size={14} /></button></div></>}
-      {page === 'dashboard' && <>{title('Payer’s view', <>Everyone’s here.<br /><em>Nearly settled.</em></>, `${names[payer]}, here’s where your table stands. Local simulation, not live.`)}<div className="split-panel stack wide"><div className="row between"><div><span className="eyebrow muted">Table total</span><h2 className="money" style={{ fontSize: 34 }}>{money(total)}</h2></div><span className="split-badge done">{locked ? 'Bill locked' : `${confirmed} of 4 finished`}</span></div><div className="split-status-list">{names.map((n, i) => <div className="split-person-row" key={i}>{avatar(i)}<div className="spacer"><h3>{n}{i === payer ? ' · you, payer' : ''}</h3><span className={`split-badge ${finished[i] ? 'done' : ''}`}>{finished[i] ? 'Finished' : 'Selecting'}</span></div><div className="money amount">{money(amounts[i].total)}</div>{!locked && <button className="split-icon-btn" aria-label={`Choose items as ${n}`} onClick={() => { setActive(i); navigate('select'); }}><ChevronRight size={17} /></button>}</div>)}</div>{unclaimed.length > 0 && <div className="split-notice warm"><CircleHelp size={19} /><div><strong>{unclaimed.length} items still need a home · {money(amounts[4].total)} with tax & tip</strong><p style={{ marginTop: 5 }}>{unclaimed.map(i => i.name).join(' · ')}</p><button className="split-text-btn" onClick={() => { setActive(payer); navigate('select'); }}>Review remaining items <ArrowRight size={13} /></button></div></div>}{!locked && <><div className="split-notice"><Users size={18} /><span>Demo control: simulate friends confirming their current choices. This does not change their selections or mean they have paid.</span></div><div className="split-tab-row"><button onClick={() => { setFinished(prev => prev.map((v, i) => i === payer ? v : true)); setToast('Friends marked Finished in this local simulation.'); }}>Simulate friends finishing</button></div><button className="split-btn full secondary" onClick={() => { setActive(payer); navigate('select'); }}>Choose my own items <Utensils size={16} /></button></>}<button className="split-btn full" onClick={() => locked ? navigate('final') : setModal('close')}>{locked ? 'Open locked breakdown' : 'Review & close the bill'}<ArrowRight size={17} /></button></div></>}
-      {page === 'final' && <>{title(locked ? 'Locked breakdown' : 'Final breakdown preview', <>{locked ? 'All accounted for.' : 'A happy ending.'}<br /><em>Down to the last cent.</em></>, locked ? 'Selections are locked. Paying back happens outside Split.' : 'Close the table to lock amounts and preview payment handoffs.')}<div className="split-panel stack wide">{!locked && <div className="split-notice warm"><LockKeyhole size={18} /><span>This is not a final bill yet. {unclaimed.length ? `${unclaimed.length} items remain unclaimed.` : 'The payer still needs to close it.'}<br /><button className="split-text-btn" onClick={() => setModal('close')}>Review & lock the bill <ArrowRight size={13} /></button></span></div>}<div className="split-inline-total row between"><div><div className="eyebrow">Lido · Dinner for four</div><span className="small">Items {money(subtotal)} · tax {money(tax)} · tip {money(tip)}</span></div><h2 className="money">{money(total)}</h2></div>{names.map((n, i) => <div key={i} style={{ borderBottom: '1px solid var(--line)', paddingBottom: 17 }}><div className="row">{avatar(i)}<div className="spacer"><h3>{n}{i === payer ? ' · payer' : ''}</h3><span className="small muted">{i === payer ? 'Your own share · no self-payment' : `Owes ${names[payer]} · payment not tracked`}</span></div><strong className="money amount">{money(amounts[i].total)}</strong></div><div className="small muted" style={{ paddingLeft: 41, marginTop: 9 }}>Items {money(amounts[i].base)} + tax {money(amounts[i].tax)} + tip {money(amounts[i].tip)}</div><div className="small muted" style={{ paddingLeft: 41, marginTop: 4 }}>{equal ? 'Equal share of all receipt items' : items.filter(x => x.claims.includes(i)).map(x => `${x.name}${x.claims.length > 1 ? ` (1/${x.claims.length})` : ''}`).join(' · ') || 'No items selected'}</div>{i !== payer && <button disabled={!locked || (!venmo.trim() && !zelle.trim())} className="split-text-btn" style={{ marginLeft: 41 }} onClick={() => { setPaymentPerson(i); setModal('payment'); }}>Preview paying {names[payer]} <ArrowRight size={13} /></button>}</div>)}{unclaimed.length > 0 && <div className="row between small"><span>Unallocated, including tax & tip</span><strong className="money">{money(amounts[4].total)}</strong></div>}<div className="row between"><strong>{locked ? 'All four shares' : 'Shares + unallocated'}</strong><strong className="money">{money(amounts.reduce((s, x) => s + x.total, 0))}</strong></div><div className="split-notice"><ShieldCheck size={18} /><span>Tax & tip follow item value. Shared items split evenly. Leftover cents go in table order so the total always matches. No money is moved or marked paid.</span></div>{!venmo.trim() && !zelle.trim() && <p className="small muted">No payment details added. Arrange repayment directly with {names[payer]}.</p>}<button className="split-text-btn" onClick={() => copy(`Split · Lido sample bill\n${names.map((n, i) => `${n}: ${money(amounts[i].total)}${i === payer ? ' (payer, own share)' : ` owed to ${names[payer]}`}`).join('\n')}${unclaimed.length ? `\nUnallocated: ${money(amounts[4].total)}` : ''}\nTotal: ${money(total)}\n${locked ? 'Locked selections. No payments tracked.' : 'Preview only; not locked.'}`, 'Sample breakdown copied. No payment or shared session created.')}><Copy size={15} />Copy breakdown</button></div></>}
-      </div></main>
+  const draftTip = tipDraft.mode === 'percent' ? Math.round(subtotal * numeric(tipDraft.value) / 100) : centsFrom(tipDraft.value);
+  const tipDraftValid = tipDraft.value.trim() !== '' && /^\d*(\.\d{0,2})?$/.test(tipDraft.value) && Number.isFinite(Number(tipDraft.value));
+  const draftNumbers = splitDraft?.values.map(v => splitDraft.mode === 'amount' || splitDraft.mode === 'percent' ? centsFrom(v) : numeric(v)) ?? [];
+  const draftTarget = splitDraft?.mode === 'percent' ? 10000 : splitDraft?.mode === 'units' ? numeric(splitDraft.units) : currentItem?.cents ?? 0;
+  const draftSum = draftNumbers.reduce((a, b) => a + b, 0);
+  const draftRemaining = draftTarget - draftSum;
+  const draftInputsValid = splitDraft?.values.every(v => v === '' || (Number.isFinite(Number(v)) && Number(v) >= 0 && (splitDraft.mode === 'units' ? /^\d+$/.test(v) : /^\d*(\.\d{0,2})?$/.test(v)))) ?? false;
+  const unitsValid = !!splitDraft && /^\d+$/.test(splitDraft.units) && Number(splitDraft.units) > 0 && Number(splitDraft.units) <= 10000;
+  const draftValid = !!splitDraft && (splitDraft.mode === 'equal' ? splitDraft.people.some(Boolean) : draftInputsValid && draftRemaining === 0 && (splitDraft.mode !== 'units' || unitsValid));
+  const draftAmounts = currentItem && splitDraft
+    ? splitDraft.mode === 'equal' ? distribute(currentItem.cents, splitDraft.people.map(Number))
+    : splitDraft.mode === 'amount' ? draftNumbers
+    : draftValid ? distribute(currentItem.cents, draftNumbers)
+    : draftNumbers.map(n => draftTarget > 0 ? Math.round(currentItem.cents * n / draftTarget) : 0)
+    : [0, 0, 0, 0];
+
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(''), 3200); return () => clearTimeout(t); }, [toast]);
+  function navigate(next: Page) { setPage(next); setModal(null); setSplitDraft(null); window.scrollTo({ top: 0, behavior: 'instant' }); }
+  function invalidate() { setFinished([false, false, false, false]); }
+  function updateItem(id: number, patch: Partial<Item>) {
+    if (locked) return;
+    const old = items.find(x => x.id === id);
+    const reset = old?.mode === 'amount' && patch.cents !== undefined && patch.cents !== old.cents;
+    setItems(prev => prev.map(x => x.id === id ? { ...x, ...patch, ...(reset ? { mode: 'equal' as SplitMode, claims: [], values: undefined } : {}) } : x));
+    if (reset) setToast('Price changed. Assign this item again.');
+    invalidate();
+  }
+  function toggleClaim(item: Item, person: number) {
+    if (locked) return;
+    if (item.mode && item.mode !== 'equal') { setSplitDraft(makeDraft(item)); return; }
+    updateItem(item.id, { claims: item.claims.includes(person) ? item.claims.filter(p => p !== person) : [...item.claims, person].sort() });
+  }
+  function switchSplitMode(mode: SplitMode) {
+    if (!splitDraft || !currentItem) return;
+    const people = splitDraft.mode === 'equal' ? splitDraft.people : draftNumbers.map(n => n > 0);
+    const weights = splitDraft.mode === 'equal' ? people.map(Number) : draftNumbers;
+    const values = mode === 'amount' ? distribute(currentItem.cents, weights).map(n => (n / 100).toFixed(2))
+      : mode === 'percent' ? distribute(10000, weights).map(n => String(n / 100))
+      : mode === 'units' ? distribute(Math.floor(numeric(splitDraft.units)), weights).map(String)
+      : people.map(n => n ? '1' : '0');
+    setSplitDraft({ ...splitDraft, mode, people, values });
+  }
+  function saveSplit() {
+    if (!splitDraft || !currentItem || !draftValid || locked) return;
+    updateItem(currentItem.id, {
+      mode: splitDraft.mode,
+      claims: [0, 1, 2, 3].filter(i => splitDraft.mode === 'equal' ? splitDraft.people[i] : draftNumbers[i] > 0),
+      values: splitDraft.mode === 'equal' ? undefined : draftNumbers,
+      units: splitDraft.mode === 'units' ? Number(splitDraft.units) : currentItem.units,
+    });
+    setSplitDraft(null);
+    setToast('Split saved');
+  }
+  function updateDraftValue(index: number, value: string) { setSplitDraft(prev => prev ? { ...prev, values: prev.values.map((v, i) => i === index ? value : v) } : null); }
+  function openTip() { setTipDraft({ mode: tipMode, value: tipValue }); setModal('tip'); }
+  function changeTipMode(mode: TipMode) {
+    if (mode === tipDraft.mode) return;
+    setTipDraft({ mode, value: mode === 'amount' ? (draftTip / 100).toFixed(2) : subtotal ? (draftTip / subtotal * 100).toFixed(2) : '0' });
+  }
+  async function copy(text: string, message: string) {
+    try { await navigator.clipboard.writeText(text); setToast(message); }
+    catch { setToast('Copy unavailable. Select the displayed details instead.'); }
+  }
+  async function nativeShare() {
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Split prototype', text: 'Sample bill only. No live session or payments.', url: demoUrl }); }
+      catch { /* A dismissed system share sheet needs no error. */ }
+    } else await copy(demoUrl, 'Prototype link copied. No live session.');
+  }
+  function finish() { if (locked) { navigate('final'); return; } setFinished(prev => prev.map((v, i) => i === active ? true : v)); navigate('waiting'); }
+  function closeBill(takeRemaining: boolean) {
+    if (!items.length || (unclaimed.length && !takeRemaining)) return;
+    if (takeRemaining) setItems(prev => prev.map(x => !x.claims.length ? { ...x, claims: [payer], mode: 'equal', values: undefined } : x));
+    setLocked(true); setFinished([true, true, true, true]); navigate('final');
+  }
+  const avatar = (i: number) => <span className={`sp-avatar sp-a${i}`} aria-hidden="true">{names[i].slice(0, 1) || '?'}</span>;
+  const heading = (headingText: string, description?: string) => <div className="sp-heading">
+    <div className="sp-row sp-between"><span className="sp-context">Lido, Brooklyn · 4 people</span><button className="sp-icon" onClick={() => navigate('share')} aria-label="Invite friends"><Share2 size={19} /></button></div>
+    <h1>{headingText}</h1>{description && <p>{description}</p>}
+  </div>;
+  const totalLines = <><div><span>Items</span><span className="sp-money">{money(mine.base)}</span></div><div><span>Tax</span><span className="sp-money">{money(mine.tax)}</span></div><div><span>Tip{tipMode === 'percent' ? ` (${numeric(tipValue)}%)` : ''}</span><span className="sp-money">{money(mine.tip)}</span></div></>;
+  const basicTabs = <nav className="sp-mobile-tabs" aria-label="Bill navigation">{(['select', 'review', 'dashboard'] as Page[]).map((p, i) => <button key={p} className={page === p ? 'active' : ''} aria-current={page === p ? 'page' : undefined} onClick={() => navigate(p)}>{['Items', 'Receipt & tip', 'Group'][i]}</button>)}</nav>;
+  function splitLabel(item: Item) {
+    if (!item.claims.length) return 'Unclaimed';
+    const mode = item.mode ?? 'equal';
+    const own = item.claims.includes(active);
+    if (mode === 'units') return own ? `You: ${item.values?.[active] ?? 0} of ${item.units} units` : `${item.units} units allocated`;
+    if (mode === 'percent') return own ? `You: ${(item.values?.[active] ?? 0) / 100}% · ${money(itemShares(item)[active])}` : 'Split by percent';
+    if (mode === 'amount') return own ? `You: ${money(itemShares(item)[active])}` : 'Split by amount';
+    return item.claims.length > 1 ? `${item.claims.length} people${own ? ` · You ${money(itemShares(item)[active])}` : ' · Equal'}` : own ? 'Yours' : names[item.claims[0]];
+  }
+
+  return <div className="split-v2">
+    <header className="sp-topbar"><div className="sp-brand"><Divide size={26} strokeWidth={2.5} />split<span>.</span></div><label className="sp-demo-control">Demo<select aria-label="Explore prototype screens" value={page} onChange={e => navigate(e.target.value as Page)}>{pageOrder.map(p => <option key={p} value={p}>{pageNames[p]}</option>)}</select></label></header>
+    <div className="sp-layout">
+      <aside className="sp-rail">
+        <div className="sp-restaurant"><Utensils size={25} /><div><h3>Lido, Brooklyn</h3><p className="sp-small sp-muted">Dinner for four</p></div></div>
+        <nav aria-label="Bill navigation">{[
+          { page: 'select' as Page, label: 'My items', icon: Utensils },
+          { page: 'review' as Page, label: 'Receipt & tip', icon: ReceiptText },
+          { page: 'share' as Page, label: 'Invite friends', icon: Share2 },
+          { page: 'dashboard' as Page, label: 'Group', icon: Users },
+          ...(locked ? [{ page: 'final' as Page, label: 'Final amounts', icon: LockKeyhole }] : []),
+        ].map(({ page: p, label, icon: Icon }) => <button key={p} className={page === p ? 'active' : ''} aria-current={page === p ? 'page' : undefined} onClick={() => navigate(p)}><Icon size={18} />{label}</button>)}</nav>
+        <p className="sp-rail-note">Sample bill.<br />No live activity or payments.</p>
+      </aside>
+      <main className="sp-main">
+        <div key={page} className={`sp-page ${page === 'select' ? 'sp-select-page' : ''}`}>
+          {page === 'select' && <>
+            {heading(locked ? 'Your items' : 'Choose your items', locked ? 'This bill is locked.' : 'Tap your items. Split anything shared.')}
+            {basicTabs}
+            <div className="sp-selection-grid">
+              <div>
+                <div className="sp-card">
+                  <div className="sp-card-head"><span className="sp-small sp-muted">{equal ? 'Equal split' : `${items.length} items`}</span><button className="sp-person-switch" onClick={() => setModal('person')}>{avatar(active)}{names[active]}<ChevronDown size={16} /></button></div>
+                  {equal ? <div className="sp-pad sp-stack"><Users size={27} /><h2>Split equally, four ways</h2><p className="sp-muted">Each person pays {money(amounts[active].total)}, including tax and tip.</p><button className="sp-link" disabled={locked} onClick={() => navigate('method')}>Change split method<ChevronRight size={18} /></button></div>
+                    : items.length ? items.map(item => <div key={item.id} className={`sp-item ${item.claims.includes(active) ? 'sp-selected' : ''}`}>
+                      <button className="sp-item-main" disabled={locked} aria-label={`${item.mode && item.mode !== 'equal' ? 'Edit split for' : item.claims.includes(active) ? 'Unselect' : 'Select'} ${item.name}`} aria-pressed={item.claims.includes(active)} onClick={() => toggleClaim(item, active)}>
+                        <span className="sp-checkbox">{item.claims.includes(active) && <Check size={16} strokeWidth={2.5} />}</span><span className="sp-item-title">{item.name}</span><span className="sp-money">{money(item.cents)}</span>
+                      </button>
+                      <div className="sp-item-meta"><span>{splitLabel(item)}</span><button className="sp-split-action" disabled={locked} onClick={() => setSplitDraft(makeDraft(item))}>{item.mode && item.mode !== 'equal' ? 'Edit split' : 'Split item'}<ChevronRight size={16} /></button></div>
+                    </div>) : <div className="sp-pad sp-stack"><ReceiptText size={30} /><h2>No items yet</h2><button className="sp-button" onClick={() => navigate('review')}>Add receipt items<Plus size={18} /></button></div>}
+                </div>
+                <p className="sp-list-note">{equal ? 'Extra cents are balanced across the group.' : 'Tax and tip follow each person’s item total.'}</p>
+                <button className="sp-setting sp-row" onClick={openTip}><div className="sp-grow"><h3>Tip</h3><p className="sp-small">{tipMode === 'percent' ? `${numeric(tipValue)}% of the pre-tax subtotal` : 'Fixed amount for the table'}</p></div><strong className="sp-money">{money(tip)}</strong><ChevronRight size={18} /></button>
+                <button className="sp-link" onClick={() => navigate('method')}>Split method: {equal ? 'Equal total' : 'By item'}<ChevronRight size={16} /></button>
+              </div>
+              <aside className="sp-card sp-pad sp-summary">
+                <span className="sp-small sp-muted">Your {locked ? 'final' : 'estimated'} share</span><div className="sp-big-amount sp-money">{money(mine.total)}</div>
+                <div className="sp-summary-lines">{totalLines}</div>
+                <button className="sp-button full" disabled={!items.length} onClick={finish}>{locked ? 'Final amounts' : 'Confirm items'}<Check size={18} /></button>
+                <p className="sp-footer-note">No payment is made here.</p>
+              </aside>
+            </div>
+            <div className="sp-sticky-footer"><button onClick={() => setModal('breakdown')} aria-label="View your share breakdown"><span className="sp-small">{locked ? 'Final share' : 'Your share · estimated'}<ChevronDown size={13} /></span><span className="sp-money">{money(mine.total)}</span></button><button className="sp-button" disabled={!items.length} onClick={finish}>{locked ? 'View final' : 'Confirm'}<Check size={18} /></button></div>
+          </>}
+
+          {page === 'setup' && <>{heading('Start a bill')}<div className="sp-card sp-pad sp-stack sp-content">
+            <label className="sp-field">Your name<input value={names[payer]} maxLength={24} disabled={locked} autoComplete="given-name" onChange={e => setNames(n => n.map((v, i) => i === payer ? e.target.value : v))} placeholder="First name" /></label>
+            <div><h3>Payment details</h3><p className="sp-small sp-muted">Optional. Friends pay you outside Split.</p></div>
+            <label className="sp-field">Venmo username<input value={venmo} disabled={locked} autoCapitalize="none" onChange={e => setVenmo(e.target.value)} placeholder="@username" /></label>
+            <label className="sp-field">Zelle email or phone<input value={zelle} disabled={locked} autoCapitalize="none" onChange={e => setZelle(e.target.value)} placeholder="Email or phone number" /></label>
+            <button className="sp-button full" disabled={!names[payer].trim()} onClick={() => navigate('entry')}>Continue<ArrowRight size={18} /></button>
+            <p className="sp-small sp-muted">No account needed. Demo changes reset on refresh.</p>
+          </div></>}
+
+          {page === 'entry' && <>{heading('Add a receipt')}<div className="sp-content sp-stack">
+            <p className="sp-small sp-muted">Camera and upload use a sample in this demo.</p>
+            {[{ icon: ScanLine, label: 'Take a photo' }, { icon: Upload, label: 'Upload a photo' }, { icon: ReceiptText, label: 'Enter manually' }].map(({ icon: Icon, label }) => <button key={label} className="sp-choice" disabled={locked} onClick={() => { setEntrySource(label === 'Enter manually' ? 'Manual entry · sample prefilled' : 'Sample receipt · not scanned'); navigate('review'); }}><Icon size={24} /><h3 className="sp-grow">{label}</h3><ChevronRight size={20} /></button>)}
+          </div></>}
+
+          {page === 'review' && <>{heading('Review receipt')}{basicTabs}<div className="sp-card sp-pad sp-stack sp-content">
+            <div className="sp-row sp-between"><span className="sp-small sp-muted">{entrySource}</span>{locked && <span className="sp-status"><LockKeyhole size={14} />Locked</span>}</div>
+            <div className="sp-receipt-items">{items.map(item => <div className="sp-receipt-row" key={item.id}>
+              <input aria-label={`Item ${item.id} name`} value={item.name} disabled={locked} onChange={e => updateItem(item.id, { name: e.target.value })} />
+              <input type="number" inputMode="decimal" step=".01" min="0" aria-label={`Price of ${item.name} in dollars`} defaultValue={(item.cents / 100).toFixed(2)} disabled={locked} onChange={e => updateItem(item.id, { cents: centsFrom(e.target.value) })} />
+              <button className="sp-icon" disabled={locked} aria-label={`Remove ${item.name}`} onClick={() => { setItems(prev => prev.filter(x => x.id !== item.id)); invalidate(); }}><Trash2 size={18} /></button>
+            </div>)}</div>
+            <button className="sp-link" disabled={locked} onClick={() => { setItems(prev => [...prev, { id: Date.now(), name: 'New item', cents: 0, claims: [], units: 1 }]); invalidate(); }}><Plus size={19} />Add item</button>
+            <div className="sp-totals">
+              <div className="sp-row"><span>Subtotal</span><strong className="sp-money">{money(subtotal)}</strong></div>
+              <div className="sp-row"><label htmlFor="sp-tax">Tax ($)</label><input id="sp-tax" className="sp-amount-input" type="number" inputMode="decimal" min="0" step=".01" disabled={locked} defaultValue={(tax / 100).toFixed(2)} onChange={e => { setTax(centsFrom(e.target.value)); invalidate(); }} /></div>
+              <button className="sp-setting sp-row" onClick={openTip}><div className="sp-grow"><h3>Tip</h3><p className="sp-small">{tipMode === 'percent' ? `${numeric(tipValue)}% · before tax` : 'Fixed amount'}</p></div><strong className="sp-money">{money(tip)}</strong><ChevronRight size={18} /></button>
+              <div className="sp-row sp-total-row"><span>Total</span><span className="sp-money">{money(total)}</span></div>
+            </div>
+            <button className="sp-button full" disabled={!items.length} onClick={() => navigate(locked ? 'final' : 'method')}>{locked ? 'Final amounts' : 'Continue'}<ArrowRight size={18} /></button>
+          </div></>}
+
+          {page === 'method' && <>{heading('How do you want to split?')}<div className="sp-content sp-stack">
+            {[false, true].map(value => <button key={String(value)} className={`sp-choice ${equal === value ? 'selected' : ''}`} disabled={locked} onClick={() => { setEqual(value); invalidate(); }}>
+              {value ? <Users size={24} /> : <Utensils size={24} />}<div className="sp-grow"><h3>{value ? 'Split the total equally' : 'Choose items'}</h3><p className="sp-small">{value ? `${money(Math.floor(total / 4))} per person, before rounding` : 'Share items equally, by $, %, or units'}</p></div>{equal === value && <Check size={20} />}
+            </button>)}
+            <label className="sp-field">Who paid the restaurant?<select value={payer} disabled={locked} onChange={e => setPayer(Number(e.target.value))}>{names.map((name, i) => <option key={i} value={i}>{name}</option>)}</select></label>
+            <button className="sp-button full" onClick={() => navigate('share')}>Invite friends<ArrowRight size={18} /></button>
+          </div></>}
+
+          {page === 'share' && <>{heading('Invite friends')}<div className="sp-card sp-pad sp-stack sp-content">
+            <div className="sp-share-card"><h2>Lido, Brooklyn</h2><p className="sp-small sp-muted">4 people · {money(total)}</p><div className="sp-qr" role="img" aria-label="Sample QR code, not scannable">{Array.from({ length: 169 }, (_, i) => {
+              const x = i % 13, y = Math.floor(i / 13);
+              const finder = (ox: number, oy: number) => x >= ox && x < ox + 5 && y >= oy && y < oy + 5 && (x === ox || x === ox + 4 || y === oy || y === oy + 4 || (x === ox + 2 && y === oy + 2));
+              return <i key={i} className={finder(0, 0) || finder(8, 0) || finder(0, 8) || (x > 5 && y > 5 && i * 17 % 7 < 3) ? 'on' : ''} />;
+            })}</div><p className="sp-small sp-muted">Sample QR · not scannable</p></div>
+            <div className="sp-link-box"><Link2 size={19} /><span className="sp-grow sp-small">Lido dinner · prototype link</span><button className="sp-icon" aria-label="Copy prototype link" onClick={() => copy(demoUrl, 'Prototype link copied. No live session.')}><Copy size={19} /></button></div>
+            <button className="sp-button full" onClick={nativeShare}><Share2 size={18} />Share link</button>
+            <p className="sp-small sp-muted">This demo link opens a sample, not a shared bill.</p>
+            <button className="sp-link" onClick={() => navigate('join')}>Preview joining<ChevronRight size={18} /></button>
+          </div></>}
+
+          {page === 'join' && <>{heading('Join the bill', `${names[payer]} paid ${money(total)} at Lido.`)}<div className="sp-card sp-pad sp-stack sp-content">
+            <div className="sp-avatar-group">{names.map((_, i) => <span key={i}>{avatar(i)}</span>)}</div>
+            <label className="sp-field">Your name<input value={joinName} maxLength={24} autoComplete="given-name" onChange={e => setJoinName(e.target.value)} placeholder="First name" /></label>
+            <button className="sp-button full" disabled={!joinName.trim()} onClick={() => { setNames(prev => prev.map((n, i) => i === 1 ? joinName.trim() : n)); setActive(1); navigate(locked ? 'final' : 'select'); }}>Join bill<ArrowRight size={18} /></button>
+            <p className="sp-small sp-muted">No signup. This demo uses Alex’s place.</p>
+          </div></>}
+
+          {page === 'waiting' && <>{heading(finished[active] ? 'You’re all set' : 'Review your share', locked ? 'The bill is now final.' : finished[active] ? `Waiting for ${names[payer]} to close the bill.` : 'Your amount changed. Confirm your items again.')}<div className="sp-card sp-pad sp-stack sp-content">
+            <div className="sp-center"><div className="sp-state-symbol">{finished[active] ? <Check size={28} /> : <Clock3 size={28} />}</div><p className="sp-small sp-muted">{names[active]}’s {locked ? 'final' : 'estimated'} share</p><div className="sp-big-amount sp-money">{money(mine.total)}</div></div>
+            <div>{names.map((name, i) => <div className="sp-person-row" key={i}>{avatar(i)}<span className="sp-grow">{name}</span><span className={`sp-status ${finished[i] ? 'done' : ''}`}>{finished[i] ? <Check size={15} /> : <Clock3 size={15} />}{finished[i] ? 'Finished' : 'Selecting'}</span></div>)}</div>
+            <button className="sp-button full secondary" onClick={() => { if (!locked) setFinished(prev => prev.map((v, i) => i === active ? false : v)); navigate(locked ? 'final' : 'select'); }}>{locked ? 'Final amounts' : 'Edit my items'}<ArrowRight size={18} /></button>
+            <p className="sp-small sp-muted">Confirmed, not paid. Shared-item changes may affect your amount.</p>
+          </div></>}
+
+          {page === 'dashboard' && <>{heading('Your group')}{basicTabs}<div className="sp-card sp-pad sp-stack sp-content">
+            <div className="sp-row sp-between"><div><p className="sp-small sp-muted">Bill total</p><h2 className="sp-money">{money(total)}</h2></div><span className="sp-status done">{locked ? <><LockKeyhole size={15} />Locked</> : `${confirmed} of 4 finished`}</span></div>
+            <div>{names.map((name, i) => <div className="sp-person-row" key={i}>{avatar(i)}<div className="sp-grow"><h3>{name}{i === payer ? ' · payer' : ''}</h3><span className={`sp-status ${finished[i] ? 'done' : ''}`}>{finished[i] ? 'Finished' : 'Selecting'}</span></div><strong className="sp-money">{money(amounts[i].total)}</strong><button className="sp-icon" aria-label={`View ${name}'s items`} onClick={() => { setActive(i); navigate(locked ? 'final' : 'select'); }}><ChevronRight size={20} /></button></div>)}</div>
+            {!!unclaimed.length && <div className="sp-notice warning"><Info size={19} /><div><strong>{unclaimed.length} unclaimed items · {money(amounts[4].total)}</strong><p className="sp-small">Includes tax and tip.</p><button className="sp-link" onClick={() => { setActive(payer); navigate('select'); }}>Assign items<ChevronRight size={17} /></button></div></div>}
+            {!locked && <button className="sp-link" onClick={() => { setFinished(prev => prev.map((v, i) => i === payer ? v : true)); setToast('Demo: friends confirmed'); }}>Demo: mark friends finished<Check size={17} /></button>}
+            <button className="sp-button full" disabled={!items.length} onClick={() => locked ? navigate('final') : setModal('close')}>{locked ? 'View final amounts' : 'Close bill'}<ArrowRight size={18} /></button>
+            <p className="sp-small sp-muted">Sample activity. Finished means confirmed, not paid.</p>
+          </div></>}
+
+          {page === 'final' && <>{heading(locked ? 'Final amounts' : 'Amounts preview', locked ? 'Pay the payer outside Split.' : 'Amounts are estimated until the payer closes the bill.')}<div className="sp-card sp-pad sp-stack sp-content">
+            {!locked && <button className="sp-button full" disabled={!items.length} onClick={() => setModal('close')}>Review & close bill<LockKeyhole size={18} /></button>}
+            <div className="sp-row sp-between"><span>Bill total</span><h2 className="sp-money">{money(total)}</h2></div>
+            <div>{names.map((name, i) => <div className="sp-final-person" key={i}>
+              <div className="sp-row">{avatar(i)}<div className="sp-grow"><h3>{name}</h3><p className="sp-small sp-muted">{i === payer ? 'Payer · own share' : `Owes ${names[payer]}`}</p></div><strong className="sp-money">{money(amounts[i].total)}</strong></div>
+              <div className="sp-details">Items {money(amounts[i].base)} · tax {money(amounts[i].tax)} · tip {money(amounts[i].tip)}</div>
+              {i !== payer && <button className="sp-link" disabled={!locked || (!venmo.trim() && !zelle.trim())} onClick={() => { setPaymentPerson(i); setModal('payment'); }}>Payment options<ChevronRight size={18} /></button>}
+            </div>)}</div>
+            {!!unclaimed.length && <div className="sp-row sp-between sp-small"><span>Still unallocated</span><strong className="sp-money">{money(amounts[4].total)}</strong></div>}
+            <div className="sp-notice"><CircleCheck size={19} /><span>Shares total {money(amounts.reduce((s, x) => s + x.total, 0))}{unclaimed.length ? ', including unallocated items' : ''}. No payments are tracked.</span></div>
+            <button className="sp-link" onClick={() => copy(`Sample bill · Lido\n${names.map((n, i) => `${n}: ${money(amounts[i].total)}${i === payer ? ' (payer)' : ''}`).join('\n')}\n${unclaimed.length ? `Unallocated: ${money(amounts[4].total)}\n` : ''}Total: ${money(total)}\n${locked ? 'Final amounts' : 'Estimated amounts'} · No payments tracked.`, 'Sample breakdown copied')}><Copy size={18} />Copy breakdown</button>
+          </div></>}
+        </div>
+      </main>
     </div>
-    {shareItem !== null && currentShareItem && <div className="split-modal-backdrop" onClick={() => setShareItem(null)}><section className="split-modal stack" role="dialog" aria-modal="true" aria-label="Share an item" onClick={e => e.stopPropagation()}><div className="row between"><span className="eyebrow muted">Good things are shared</span><button className="split-icon-btn" aria-label="Close" onClick={() => setShareItem(null)}><X size={21} /></button></div><h2>{currentShareItem.name}</h2><p className="muted small">{money(currentShareItem.cents)} · choose everyone who had some. Changes apply immediately.</p><div>{names.map((n, i) => <label className="split-person-row" key={i}>{avatar(i)}<span className="spacer">{n}{i === active ? ' · you' : ''}</span><input type="checkbox" disabled={locked} checked={currentShareItem.claims.includes(i)} onChange={() => toggleClaim(currentShareItem, i)} /></label>)}</div><div className="split-notice"><Users size={18} /><span>{currentShareItem.claims.length ? `${currentShareItem.claims.length} ${currentShareItem.claims.length === 1 ? 'person' : 'people'} · about ${money(Math.round(currentShareItem.cents / currentShareItem.claims.length))} each before tax & tip. Extra cents assigned in table order.` : 'No one selected yet. This item will stay unclaimed.'}</span></div><button className="split-btn full" onClick={() => setShareItem(null)}>Done sharing <Check size={16} /></button></section></div>}
-    {modal && <div className="split-modal-backdrop" onClick={() => setModal(null)}><section className="split-modal stack" role="dialog" aria-modal="true" aria-label={modal === 'close' ? 'Close bill confirmation' : modal === 'person' ? 'Switch participant' : 'Payment handoff preview'} onClick={e => e.stopPropagation()}><div className="row between"><span className="eyebrow muted">{modal === 'person' ? 'Explore the table' : modal === 'close' ? 'One last check' : 'External payment preview'}</span><button className="split-icon-btn" aria-label="Close dialog" onClick={() => setModal(null)}><X size={21} /></button></div>
-      {modal === 'person' && <><h2>Whose plate are we picking?</h2><p className="small muted">Switch perspective in this local demo. Nothing is sent to other people.</p>{names.map((n, i) => <button key={i} className="split-choice" onClick={() => { setActive(i); setModal(null); }}>{avatar(i)}<span className="spacer">{n}{i === payer ? ' · payer' : ''}</span>{active === i ? <Check size={17} /> : <ChevronRight size={17} />}</button>)}</>}
-      {modal === 'close' && <><h2>{unclaimed.length ? 'A few bites left over.' : 'Ready to call it a night?'}</h2><p className="small muted">Closing locks every selection. {4 - confirmed > 0 ? `${4 - confirmed} ${4 - confirmed === 1 ? 'person is' : 'people are'} still selecting. Their current choices will be confirmed, not marked paid.` : 'Everyone has confirmed their choices.'}</p>{unclaimed.length ? <><div className="split-notice warm"><ReceiptText size={18} /><div><strong>{unclaimed.length} unclaimed items</strong><p>{unclaimed.map(x => x.name).join(', ')}</p><p style={{ marginTop: 8 }}>{names[payer]} must take these before closing: <strong>{money(amounts[4].total)} including tax & tip.</strong> Nothing gets dropped.</p></div></div><button className="split-btn full" onClick={() => closeBill(true)}>I’ll take the rest & lock <LockKeyhole size={16} /></button><button className="split-btn secondary full" onClick={() => { setModal(null); setActive(payer); navigate('select'); }}>Go back & assign items</button></> : <><div className="split-notice"><LockKeyhole size={18} /><span>All {money(total)} is allocated. Amounts can’t be edited after closing in this demo.</span></div><button className="split-btn full" onClick={() => closeBill(false)}>{confirmed === 4 ? 'Lock the final breakdown' : 'Confirm current choices & lock'}<LockKeyhole size={16} /></button></>}</>}
-      {modal === 'payment' && <><h2>{names[paymentPerson]} → {names[payer]}</h2><div className="split-hero-amount money">{money(amounts[paymentPerson].total)}</div><div className="split-notice warm"><CreditCard size={19} /><span>Preview only. Split does not process payments, open recipient payment links, or verify that someone paid.</span></div>{venmo.trim() && <div className="stack" style={{ gap: 8 }}><h3>Venmo · external app handoff</h3><div className="split-link-box"><span className="spacer">{venmo}</span><button className="split-icon-btn" aria-label="Copy Venmo username" onClick={() => copy(venmo, 'Sample Venmo username copied. Do not send a real payment.')}><Copy size={16} /></button></div><button className="split-btn secondary full" onClick={() => setToast('Preview only: a real app would open Venmo. No payment app was opened.')}>Preview Venmo handoff <ArrowRight size={15} /></button></div>}{zelle.trim() && <div className="stack" style={{ gap: 8 }}><h3>Zelle · copy recipient details</h3><div className="split-link-box"><span className="spacer">{zelle}</span><button className="split-icon-btn" aria-label="Copy Zelle details" onClick={() => copy(zelle, 'Sample Zelle details copied. Do not send a real payment.')}><Copy size={16} /></button></div><p className="small muted">In a real bill, use Zelle through your banking app and verify the recipient first. There is no universal Zelle payment link.</p></div>}<button className="split-text-btn" onClick={() => setModal(null)}><ArrowLeft size={14} />Back to breakdown · no payment recorded</button></>}
-    </section></div>}
-    {toast && <div className="split-toast" role="status">{toast}</div>}
+
+    {splitDraft && currentItem && <Sheet title="Split item" description={`${currentItem.name} · ${money(currentItem.cents)}`} onClose={() => setSplitDraft(null)} footer={<button className="sp-button full" disabled={!draftValid || locked} onClick={saveSplit}>Save split<Check size={18} /></button>}>
+      <div className="sp-segments" aria-label="Split item by">{(Object.keys(modeNames) as SplitMode[]).map(mode => <button key={mode} className={splitDraft.mode === mode ? 'active' : ''} aria-pressed={splitDraft.mode === mode} onClick={() => switchSplitMode(mode)}>{modeNames[mode]}</button>)}</div>
+      {splitDraft.mode === 'units' ? <div className="sp-units-setting"><label htmlFor="sp-total-units">Total units<small className="sp-muted" style={{ display: 'block' }}>Glasses, slices, or pieces</small></label><input id="sp-total-units" type="text" inputMode="numeric" value={splitDraft.units} onChange={e => setSplitDraft({ ...splitDraft, units: e.target.value })} /></div>
+        : <p className="sp-small sp-muted" style={{ marginTop: 14 }}>{splitDraft.mode === 'equal' ? 'Choose who is sharing.' : splitDraft.mode === 'amount' ? `Assign all ${money(currentItem.cents)} before tax and tip.` : 'Percentages must add up to 100%.'}</p>}
+      <div className="sp-allocation-list">{names.map((name, i) => <div className="sp-allocation-row" key={i}>
+        {splitDraft.mode === 'equal' ? <button className="sp-equal-check" aria-pressed={splitDraft.people[i]} onClick={() => setSplitDraft({ ...splitDraft, people: splitDraft.people.map((p, index) => index === i ? !p : p) })}>
+          {avatar(i)}<span className="sp-name">{name}{i === active ? ' · you' : ''}<small>{money(draftAmounts[i])}</small></span><span className={`sp-checkbox ${splitDraft.people[i] ? 'checked' : ''}`}>{splitDraft.people[i] && <Check size={16} />}</span>
+        </button> : <>
+          {avatar(i)}<label className="sp-name" htmlFor={`sp-allocation-${i}`}>{name}{i === active ? ' · you' : ''}<small>{splitDraft.mode === 'amount' ? 'Before tax & tip' : `${money(draftAmounts[i])}${!draftValid ? ' est.' : ''}`}</small></label>
+          {splitDraft.mode === 'units' ? <div className="sp-stepper">
+            <button aria-label={`Remove a unit from ${name}`} disabled={numeric(splitDraft.values[i]) <= 0} onClick={() => updateDraftValue(i, String(Math.max(0, Math.floor(numeric(splitDraft.values[i])) - 1)))}><Minus size={16} /></button>
+            <input id={`sp-allocation-${i}`} type="text" inputMode="numeric" value={splitDraft.values[i]} onChange={e => updateDraftValue(i, e.target.value)} />
+            <button aria-label={`Add a unit to ${name}`} disabled={!unitsValid || draftSum >= numeric(splitDraft.units)} onClick={() => updateDraftValue(i, String(Math.floor(numeric(splitDraft.values[i])) + 1))}><Plus size={16} /></button>
+          </div> : <div className={`sp-number-wrap ${splitDraft.mode === 'amount' ? 'currency' : ''}`}>
+            {splitDraft.mode === 'amount' && <span className="sp-prefix">$</span>}
+            <input id={`sp-allocation-${i}`} type="text" inputMode="decimal" autoComplete="off" value={splitDraft.values[i]} onFocus={e => e.target.select()} onChange={e => updateDraftValue(i, e.target.value)} aria-invalid={!draftInputsValid || draftRemaining < 0} />
+            {splitDraft.mode === 'percent' && <span className="sp-suffix">%</span>}
+          </div>}
+        </>}
+      </div>)}</div>
+      <div className={`sp-allocation-progress ${draftValid ? 'valid' : draftRemaining < 0 || !draftInputsValid ? 'invalid' : ''}`} role="status">
+        {draftValid ? <CircleCheck size={19} /> : <Info size={19} />}<div>
+          <strong>{draftValid ? splitDraft.mode === 'equal' ? `Shared by ${splitDraft.people.filter(Boolean).length}` : splitDraft.mode === 'amount' ? `${money(draftSum)} of ${money(draftTarget)} allocated` : splitDraft.mode === 'percent' ? '100% allocated' : `${draftSum} of ${draftTarget} units allocated`
+            : splitDraft.mode === 'equal' ? 'Select at least one person'
+            : !draftInputsValid ? 'Use positive numbers or zero'
+            : splitDraft.mode === 'units' && !unitsValid ? 'Enter 1–10,000 whole units'
+            : `${splitDraft.mode === 'amount' ? money(Math.abs(draftRemaining)) : splitDraft.mode === 'percent' ? `${Math.abs(draftRemaining) / 100}%` : `${Math.abs(draftRemaining)} units`} ${draftRemaining < 0 ? 'over the total' : 'left to assign'}`}</strong>
+          <small>Tax and tip are added proportionally.</small>
+        </div>
+      </div>
+    </Sheet>}
+
+    {modal === 'tip' && <Sheet title="Tip" description="For the whole table, before tax." onClose={() => setModal(null)} footer={<button className="sp-button full" disabled={!tipDraftValid || locked} onClick={() => { setTipMode(tipDraft.mode); setTipValue(tipDraft.value); invalidate(); setModal(null); setToast('Tip updated'); }}>{locked ? 'Bill locked' : 'Save tip'}<Check size={18} /></button>}>
+      <div className="sp-stack">
+        <div className="sp-segments two" aria-label="Tip entry type"><button className={tipDraft.mode === 'percent' ? 'active' : ''} aria-pressed={tipDraft.mode === 'percent'} onClick={() => changeTipMode('percent')}>Percentage (%)</button><button className={tipDraft.mode === 'amount' ? 'active' : ''} aria-pressed={tipDraft.mode === 'amount'} onClick={() => changeTipMode('amount')}>Amount ($)</button></div>
+        {tipDraft.mode === 'percent' && <div className="sp-presets">{[15, 18, 20, 22].map(rate => <button key={rate} className={numeric(tipDraft.value) === rate ? 'active' : ''} aria-pressed={numeric(tipDraft.value) === rate} onClick={() => setTipDraft({ mode: 'percent', value: String(rate) })}>{rate}%</button>)}</div>}
+        <label className="sp-field" htmlFor="sp-tip-input">{tipDraft.mode === 'percent' ? 'Custom percentage' : 'Tip amount ($)'}<input id="sp-tip-input" type="text" inputMode="decimal" value={tipDraft.value} onFocus={e => e.target.select()} onChange={e => setTipDraft({ ...tipDraft, value: e.target.value })} aria-invalid={!tipDraftValid} /><small>{tipDraft.mode === 'percent' ? `Based on ${money(subtotal)} subtotal, excluding tax.` : 'Enter 0 for no tip.'}</small></label>
+        <div className="sp-tip-result sp-row sp-between"><div><h3>Tip total</h3><span className="sp-small sp-muted">{tipDraft.mode === 'percent' ? `${numeric(tipDraft.value)}% × ${money(subtotal)}` : 'Fixed dollar amount'}</span></div><strong className="sp-money">{money(draftTip)}</strong></div>
+        <p className="sp-small sp-muted">Divided in proportion to each person’s items.</p>
+      </div>
+    </Sheet>}
+
+    {modal === 'person' && <Sheet title="View as" description="Switch people in this demo." onClose={() => setModal(null)}><div className="sp-stack" style={{ gap: 10 }}>{names.map((name, i) => <button className="sp-choice" key={i} onClick={() => { setActive(i); setModal(null); }}>{avatar(i)}<span className="sp-grow">{name}{i === payer ? ' · payer' : ''}</span>{active === i ? <Check size={19} /> : <ChevronRight size={19} />}</button>)}</div></Sheet>}
+
+    {modal === 'breakdown' && <Sheet title="Your share" description={`${names[active]} · ${locked ? 'final amount' : 'estimated amount'}`} onClose={() => setModal(null)}>
+      <div className="sp-big-amount sp-money">{money(mine.total)}</div><div className="sp-summary-lines">{totalLines}</div><p className="sp-small sp-muted">Tax and tip follow your item total. Amounts lock when the payer closes the bill.</p><button className="sp-link" onClick={openTip}>View table tip<ChevronRight size={18} /></button>
+    </Sheet>}
+
+    {modal === 'close' && <Sheet title={unclaimed.length ? 'Assign remaining items' : 'Close this bill?'} onClose={() => setModal(null)} footer={<button className="sp-button full" disabled={!items.length} onClick={() => closeBill(unclaimed.length > 0)}>{unclaimed.length ? 'Take remaining & close' : confirmed === 4 ? 'Close bill' : 'Force finish & close'}<LockKeyhole size={18} /></button>}>
+      <div className="sp-stack">
+        {!!unclaimed.length && <><p className="sp-muted">{names[payer]} will cover these items:</p><div>{unclaimed.map(item => <div className="sp-person-row" key={item.id}><span className="sp-grow">{item.name}</span><strong className="sp-money">{money(item.cents)}</strong></div>)}</div><div className="sp-row sp-between"><strong>With tax & tip</strong><strong className="sp-money">{money(amounts[4].total)}</strong></div><button className="sp-link" onClick={() => { setActive(payer); navigate('select'); }}>Assign to someone else<ChevronRight size={18} /></button></>}
+        {confirmed < 4 && <div className="sp-notice warning"><Info size={19} /><span>{4 - confirmed} {4 - confirmed === 1 ? 'person is' : 'people are'} still selecting. Closing keeps their current choices.</span></div>}
+        <p className="sp-small sp-muted">Closing locks all amounts. No payment is made or verified.</p>
+      </div>
+    </Sheet>}
+
+    {modal === 'payment' && <Sheet title={`Pay ${names[payer]}`} description={`${names[paymentPerson]}’s share · payment preview`} onClose={() => setModal(null)}>
+      <div className="sp-stack"><div className="sp-big-amount sp-money">{money(amounts[paymentPerson].total)}</div>
+        <div className="sp-notice warning"><Info size={19} /><span>Demo only. Do not send money to these sample details.</span></div>
+        {venmo.trim() && <div><h3>Venmo</h3><div className="sp-link-box" style={{ marginTop: 10 }}><span className="sp-grow">{venmo}</span><button className="sp-icon" aria-label="Copy sample Venmo username" onClick={() => copy(venmo, 'Sample username copied. Do not send money.')}><Copy size={18} /></button></div><button className="sp-link" onClick={() => setToast('Preview only. No payment app was opened.')}>Preview Venmo handoff<ArrowRight size={17} /></button></div>}
+        {zelle.trim() && <div><h3>Zelle</h3><div className="sp-link-box" style={{ marginTop: 10 }}><span className="sp-grow">{zelle}</span><button className="sp-icon" aria-label="Copy sample Zelle details" onClick={() => copy(zelle, 'Sample Zelle details copied. Do not send money.')}><Copy size={18} /></button></div><p className="sp-small sp-muted" style={{ marginTop: 10 }}>Use your bank’s app. Always check the recipient.</p></div>}
+        <p className="sp-small sp-muted">Split doesn’t process or verify payments.</p>
+      </div>
+    </Sheet>}
+    {toast && <div className="sp-toast" role="status">{toast}</div>}
   </div>;
 }
