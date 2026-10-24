@@ -31,8 +31,7 @@
 .split-v2 .sp-money { font-variant-numeric: tabular-nums; letter-spacing: -.35px; white-space: nowrap; }
 .sp-topbar { height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 28px; border-bottom: 1px solid var(--sp-line); background: var(--sp-surface); }
 .sp-brand { display: flex; gap: 9px; align-items: center; font-size: 26px; font-weight: 700; letter-spacing: -1px; color: var(--sp-indigo); }
-.sp-brand-mark { width: 31px; height: 31px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--sp-indigo); color: #f7f0fc; }
-.sp-brand-mark svg { width: 20px; height: 20px; }
+.sp-brand-logo { display: block; width: 36px; height: 36px; flex-shrink: 0; object-fit: contain; border-radius: 9px; }
 .sp-demo-control { display: flex; gap: 9px; align-items: center; color: var(--sp-muted); font-size: 12px; }
 .sp-demo-control select { padding: 9px 26px 9px 10px; width: 160px; min-height: 44px; font-size: 14px; background: var(--sp-bg); border: 0; }
 .sp-layout { max-width: 1220px; margin: auto; display: grid; grid-template-columns: 184px minmax(0,1fr); gap: 44px; padding: 34px 30px 60px; }
@@ -214,7 +213,6 @@
 @media(max-width:600px) {
   .sp-topbar { padding: 0 20px; height: 66px; }
   .sp-brand { font-size: 25px; }
-  .sp-brand-mark svg { width: 20px; }
   .sp-demo-control { gap: 7px; }
   .sp-demo-control select { width: 152px; font-size: 14px; }
   .sp-layout { padding: 22px 16px 32px; }
@@ -310,8 +308,6 @@ html, body { background: var(--sp-bg); }
 .sp-topbar { background: var(--sp-bg); border-bottom: 2px solid var(--sp-ink); }
 .sp-topbar-end { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .sp-brand { font-weight: 800; color: var(--sp-ink); letter-spacing: -1.4px; }
-.sp-brand-mark { background: var(--sp-lavender); color: #17151c; border-radius: 10px; position: relative; }
-.sp-brand-mark::after { content: ''; position: absolute; right: -3px; top: -3px; width: 9px; height: 9px; border-radius: 50%; background: var(--sp-orange); border: 2px solid var(--sp-bg); }
 .sp-theme-toggle { min-width: 44px; min-height: 44px; border-radius: 50%; border: 1.5px solid var(--sp-ink); background: var(--sp-surface); color: var(--sp-ink); display: inline-flex; align-items: center; justify-content: center; }
 .sp-theme-toggle:hover { background: var(--sp-soft); }
 .sp-card { border-radius: 20px; }
