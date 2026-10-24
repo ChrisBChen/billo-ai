@@ -15,7 +15,7 @@ export function GroupView({ bill, send, pending, onClose }: { bill: BillView; se
   const allConfirmed = bill.participants.length > 0 && confirmed === bill.participants.length;
   return <div className="sp-stack sp-content">
     {closed ? <div className="sp-payment-overview" data-testid="status-payments"><div><small>Still owed to {bill.participants.find(p => p.isPayer)?.name}</small><strong className="sp-money">{money(bill.outstandingCents)}</strong></div><div><small>Reported paid</small><strong>{paidCount} of {others.length}</strong></div></div>
-      : <div className={`sp-payment-overview${allConfirmed ? '' : ' confirmation-pending'}`} data-testid="status-confirmed" role="group" aria-label={`Confirmed ${confirmed} of ${bill.participants.length}; ${bill.splitMode === 'equal' ? 'no unclaimed items' : `${unclaimed.length} unclaimed items`}`}>
+      : <div className={`sp-payment-overview sp-confirmation-overview${allConfirmed ? '' : ' confirmation-pending'}`} data-testid="status-confirmed" role="group" aria-label={`Confirmed ${confirmed} of ${bill.participants.length}; ${bill.splitMode === 'equal' ? 'no unclaimed items' : `${unclaimed.length} unclaimed items`}`}>
         <div><small>Confirmed</small><strong>{confirmed} of {bill.participants.length}</strong></div>
         <div><small>Unclaimed</small><strong>{bill.splitMode === 'equal' ? 'None' : unclaimed.length}</strong></div>
       </div>}
