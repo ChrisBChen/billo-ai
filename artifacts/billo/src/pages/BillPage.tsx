@@ -89,7 +89,6 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
     share: ['Invite friends', ''],
     group: closed ? ['Group & payments', 'Who has reported paying.'] : ['Group', ''],
   };
-  const payerName = bill.participants.find(p => p.isPayer)?.name ?? '';
 
   if (!isHost && reviewRequired) return <>
     <Topbar context={bill.title} /><OfflineBanner stale={stale} />
@@ -104,7 +103,7 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
     <OfflineBanner stale={stale} />
     <div className="sp-layout">
       <aside className="sp-rail">
-        <div className="sp-restaurant"><Utensils size={25} /><div><h3>{bill.title}</h3><p className="sp-small sp-muted">{payerName} paid · {bill.participants.length} {bill.participants.length === 1 ? 'person' : 'people'}</p></div></div>
+        <div className="sp-restaurant"><Utensils size={25} /><div><h3>{bill.title}</h3></div></div>
         {!reviewRequired && <nav aria-label="Bill navigation">{nav.map(({ tab: t, label, icon: Icon }) => <button key={t} data-testid={`nav-${t}`} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}><Icon size={18} />{label}</button>)}</nav>}
       </aside>
       <main className="sp-main">
