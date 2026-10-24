@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowRight, Check, ChevronDown, ChevronRight, CircleCheck, Clock3, Copy, Divide, Info, Link2, LockKeyhole, Minus, Plus, ReceiptText, ScanLine, Share2, Trash2, Upload, Users, Utensils, X } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check, ChevronDown, ChevronRight, CircleCheck, Clock3, Copy, Divide, Info, Link2, LockKeyhole, Minus, Plus, ReceiptText, ScanLine, Share2, Trash2, Upload, Users, Utensils, X } from 'lucide-react';
 import './SplitPrototype.css';
 
 type Page = 'select' | 'setup' | 'entry' | 'review' | 'method' | 'share' | 'join' | 'waiting' | 'dashboard' | 'final';
 type SplitMode = 'equal' | 'amount' | 'percent' | 'units';
 type TipMode = 'amount' | 'percent';
+type PaymentMethod = 'venmo' | 'zelle' | null;
 type Item = { id: number; name: string; cents: number; claims: number[]; mode?: SplitMode; values?: number[]; units?: number };
 type SplitDraft = { id: number; mode: SplitMode; people: boolean[]; values: string[]; units: string };
 type ModalKind = 'person' | 'close' | 'payment' | 'tip' | 'breakdown' | null;
@@ -20,7 +21,7 @@ const initialItems: Item[] = [
   { id: 8, name: 'Sparkling lemonade', cents: 700, claims: [3], units: 1 },
   { id: 9, name: 'Olive oil cake', cents: 1200, claims: [], units: 1 },
 ];
-const pageNames: Record<Page, string> = { setup: 'Start a bill', entry: 'Add receipt', review: 'Receipt & tip', method: 'Split method', share: 'Invite friends', join: 'Join bill', select: 'Choose items', waiting: 'Waiting', dashboard: 'Group', final: 'Final amounts' };
+const pageNames: Record<Page, string> = { setup: 'Start a bill', entry: 'Add receipt', review: 'Receipt & tip', method: 'Split method', share: 'Invite friends', join: 'Join bill', select: 'Choose items', waiting: 'Waiting', dashboard: 'Group & payments', final: 'Final amounts' };
 const pageOrder: Page[] = ['setup', 'entry', 'review', 'method', 'share', 'join', 'select', 'waiting', 'dashboard', 'final'];
 const modeNames: Record<SplitMode, string> = { equal: 'Equal', amount: 'Amount', percent: 'Percent', units: 'Units' };
 const money = (cents: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -98,21 +99,25 @@ function Sheet({ title, description, children, footer, onClose }: { title: strin
 export function SplitPrototype() {
   const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
   const initialPage = params.get('screen');
+  const previewClosed = params.get('closed') === '1' || params.get('sheet') === 'payment';
   const [page, setPage] = useState<Page>(pageOrder.includes(initialPage as Page) ? initialPage as Page : 'select');
-  const [items, setItems] = useState<Item[]>(initialItems);
+  const [items, setItems] = useState<Item[]>(() => previewClosed ? initialItems.map(item => item.claims.length ? item : { ...item, claims: [0] }) : initialItems);
   const [names, setNames] = useState(['Jamie', 'Alex', 'Morgan', 'Riley']);
-  const [active, setActive] = useState(1);
+  const [active, setActive] = useState(params.get('as') === 'payer' ? 0 : 1);
   const [payer, setPayer] = useState(0);
   const [tax, setTax] = useState(1584);
   const [tipMode, setTipMode] = useState<TipMode>('percent');
   const [tipValue, setTipValue] = useState('20');
   const [equal, setEqual] = useState(false);
-  const [finished, setFinished] = useState([false, false, true, true]);
-  const [locked, setLocked] = useState(false);
+  const [finished, setFinished] = useState(previewClosed ? [true, true, true, true] : [false, false, true, true]);
+  const [locked, setLocked] = useState(previewClosed);
+  const [paid, setPaid] = useState([false, false, false, false]);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
+  const paymentShown = useRef(new Set<number>());
   const [venmo, setVenmo] = useState('@jamie-demo');
   const [zelle, setZelle] = useState('jamie@example.com');
   const [joinName, setJoinName] = useState('Alex');
-  const [modal, setModal] = useState<ModalKind>(params.get('sheet') === 'tip' ? 'tip' : null);
+  const [modal, setModal] = useState<ModalKind>(params.get('sheet') === 'tip' ? 'tip' : params.get('sheet') === 'payment' ? 'payment' : null);
   const [splitDraft, setSplitDraft] = useState<SplitDraft | null>(() => {
     if (params.get('sheet') !== 'split') return null;
     const mode = params.get('mode') as SplitMode;
@@ -127,6 +132,8 @@ export function SplitPrototype() {
   const tip = tipMode === 'percent' ? Math.round(subtotal * numeric(tipValue) / 100) : centsFrom(tipValue);
   const total = subtotal + tax + tip;
   const amounts = allocations(items, tax, tip, equal), mine = amounts[active];
+  const paidCount = paid.filter((value, i) => value && i !== payer).length;
+  const awaitingPayment = amounts.reduce((sum, amount, i) => i < names.length && i !== payer && !paid[i] ? sum + amount.total : sum, 0);
   const unclaimed = equal ? [] : items.filter(x => !x.claims.length);
   const currentItem = items.find(x => x.id === splitDraft?.id);
   const confirmed = finished.filter(Boolean).length;
@@ -148,7 +155,25 @@ export function SplitPrototype() {
     : [0, 0, 0, 0];
 
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(''), 3200); return () => clearTimeout(t); }, [toast]);
-  function navigate(next: Page) { setPage(next); setModal(null); setSplitDraft(null); window.scrollTo({ top: 0, behavior: 'instant' }); }
+  // Local prototype of the bill-finalized event. Production needs a server event
+  // addressed to each participant's authenticated session, not a role switcher.
+  useEffect(() => {
+    if (!locked || active === payer || paymentShown.current.has(active)) return;
+    paymentShown.current.add(active);
+    setPaymentPerson(active);
+    setPaymentMethod(null);
+    setModal('payment');
+  }, [locked, active, payer]);
+  function navigate(next: Page) { setPage(next); setModal(null); setSplitDraft(null); setPaymentMethod(null); window.scrollTo({ top: 0, behavior: 'instant' }); }
+  function openPayment(person: number) {
+    if (!locked || person === payer) return;
+    setPaymentPerson(person); setPaymentMethod(null); setModal('payment');
+  }
+  function reportPayment(value: boolean) {
+    if (!locked || paymentPerson === payer) return;
+    setPaid(previous => previous.map((entry, i) => i === paymentPerson ? value : entry));
+    setToast(value ? 'Marked paid in this demo. Not bank-verified.' : 'Payment report removed.');
+  }
   function invalidate() { setFinished([false, false, false, false]); }
   function updateItem(id: number, patch: Partial<Item>) {
     if (locked) return;
@@ -196,7 +221,7 @@ export function SplitPrototype() {
   }
   async function nativeShare() {
     if (navigator.share) {
-      try { await navigator.share({ title: 'Split prototype', text: 'Sample bill only. No live session or payments.', url: demoUrl }); }
+      try { await navigator.share({ title: 'Billo prototype', text: 'Sample bill only. No live session or payments.', url: demoUrl }); }
       catch { /* A dismissed system share sheet needs no error. */ }
     } else await copy(demoUrl, 'Prototype link copied. No live session.');
   }
@@ -204,7 +229,7 @@ export function SplitPrototype() {
   function closeBill(takeRemaining: boolean) {
     if (!items.length || (unclaimed.length && !takeRemaining)) return;
     if (takeRemaining) setItems(prev => prev.map(x => !x.claims.length ? { ...x, claims: [payer], mode: 'equal', values: undefined } : x));
-    setLocked(true); setFinished([true, true, true, true]); navigate('final');
+    setLocked(true); setFinished([true, true, true, true]); navigate(active === payer ? 'dashboard' : 'final');
   }
   const avatar = (i: number) => <span className={`sp-avatar sp-a${i}`} aria-hidden="true">{names[i].slice(0, 1) || '?'}</span>;
   const heading = (headingText: string, description?: string) => <div className="sp-heading">
@@ -224,7 +249,7 @@ export function SplitPrototype() {
   }
 
   return <div className="split-v2">
-    <header className="sp-topbar"><div className="sp-brand"><Divide size={26} strokeWidth={2.5} />split<span>.</span></div><label className="sp-demo-control">Demo<select aria-label="Explore prototype screens" value={page} onChange={e => navigate(e.target.value as Page)}>{pageOrder.map(p => <option key={p} value={p}>{pageNames[p]}</option>)}</select></label></header>
+    <header className="sp-topbar"><div className="sp-brand"><span className="sp-brand-mark"><Divide size={20} strokeWidth={2.5} /></span>Billo</div><label className="sp-demo-control">Demo<select aria-label="Explore prototype screens" value={page} onChange={e => navigate(e.target.value as Page)}>{pageOrder.map(p => <option key={p} value={p}>{pageNames[p]}</option>)}</select></label></header>
     <div className="sp-layout">
       <aside className="sp-rail">
         <div className="sp-restaurant"><Utensils size={25} /><div><h3>Lido, Brooklyn</h3><p className="sp-small sp-muted">Dinner for four</p></div></div>
@@ -270,7 +295,7 @@ export function SplitPrototype() {
 
           {page === 'setup' && <>{heading('Start a bill')}<div className="sp-card sp-pad sp-stack sp-content">
             <label className="sp-field">Your name<input value={names[payer]} maxLength={24} disabled={locked} autoComplete="given-name" onChange={e => setNames(n => n.map((v, i) => i === payer ? e.target.value : v))} placeholder="First name" /></label>
-            <div><h3>Payment details</h3><p className="sp-small sp-muted">Optional. Friends pay you outside Split.</p></div>
+            <div><h3>Payment details</h3><p className="sp-small sp-muted">Optional. Friends pay you outside Billo.</p></div>
             <label className="sp-field">Venmo username<input value={venmo} disabled={locked} autoCapitalize="none" onChange={e => setVenmo(e.target.value)} placeholder="@username" /></label>
             <label className="sp-field">Zelle email or phone<input value={zelle} disabled={locked} autoCapitalize="none" onChange={e => setZelle(e.target.value)} placeholder="Email or phone number" /></label>
             <button className="sp-button full" disabled={!names[payer].trim()} onClick={() => navigate('entry')}>Continue<ArrowRight size={18} /></button>
@@ -333,26 +358,28 @@ export function SplitPrototype() {
             <p className="sp-small sp-muted">Confirmed, not paid. Shared-item changes may affect your amount.</p>
           </div></>}
 
-          {page === 'dashboard' && <>{heading('Your group')}{basicTabs}<div className="sp-card sp-pad sp-stack sp-content">
+          {page === 'dashboard' && <>{heading(locked ? 'Track payments' : 'Your group', locked ? `${names[payer]}’s view · self-reported payments` : undefined)}{basicTabs}<div className="sp-card sp-pad sp-stack sp-content">
             <div className="sp-row sp-between"><div><p className="sp-small sp-muted">Bill total</p><h2 className="sp-money">{money(total)}</h2></div><span className="sp-status done">{locked ? <><LockKeyhole size={15} />Locked</> : `${confirmed} of 4 finished`}</span></div>
-            <div>{names.map((name, i) => <div className="sp-person-row" key={i}>{avatar(i)}<div className="sp-grow"><h3>{name}{i === payer ? ' · payer' : ''}</h3><span className={`sp-status ${finished[i] ? 'done' : ''}`}>{finished[i] ? 'Finished' : 'Selecting'}</span></div><strong className="sp-money">{money(amounts[i].total)}</strong><button className="sp-icon" aria-label={`View ${name}'s items`} onClick={() => { setActive(i); navigate(locked ? 'final' : 'select'); }}><ChevronRight size={20} /></button></div>)}</div>
+            {locked && <div className="sp-payment-overview"><div><small>Marked paid</small><strong>{paidCount} <span className="sp-small sp-muted">of 3</span></strong></div><div><small>Awaiting reports</small><strong className="sp-money">{money(awaitingPayment)}</strong></div></div>}
+            <div>{names.map((name, i) => <div className="sp-person-row" key={i}>{avatar(i)}<div className="sp-grow"><h3>{name}{i === payer ? ' · you paid' : ''}</h3>{locked ? <span className={`sp-payment-status ${paid[i] ? 'paid' : ''}`}>{i === payer ? 'Your own share' : paid[i] ? <><Check size={13} />Marked paid</> : <><Clock3 size={13} />Not marked paid</>}</span> : <span className={`sp-status ${finished[i] ? 'done' : ''}`}>{finished[i] ? 'Finished' : 'Selecting'}</span>}</div><strong className="sp-money">{money(amounts[i].total)}</strong><button className="sp-icon" aria-label={locked && i !== payer ? `Preview ${name}'s payment screen` : `View ${name}'s items`} onClick={() => { if (locked && i !== payer) openPayment(i); else { setActive(i); navigate(locked ? 'final' : 'select'); } }}><ChevronRight size={20} /></button></div>)}</div>
             {!!unclaimed.length && <div className="sp-notice warning"><Info size={19} /><div><strong>{unclaimed.length} unclaimed items · {money(amounts[4].total)}</strong><p className="sp-small">Includes tax and tip.</p><button className="sp-link" onClick={() => { setActive(payer); navigate('select'); }}>Assign items<ChevronRight size={17} /></button></div></div>}
             {!locked && <button className="sp-link" onClick={() => { setFinished(prev => prev.map((v, i) => i === payer ? v : true)); setToast('Demo: friends confirmed'); }}>Demo: mark friends finished<Check size={17} /></button>}
             <button className="sp-button full" disabled={!items.length} onClick={() => locked ? navigate('final') : setModal('close')}>{locked ? 'View final amounts' : 'Close bill'}<ArrowRight size={18} /></button>
-            <p className="sp-small sp-muted">Sample activity. Finished means confirmed, not paid.</p>
+            <p className="sp-small sp-muted">{locked ? '“Marked paid” is a friend’s report. Check your payment app to confirm receipt. Demo changes reset on refresh.' : 'Sample activity. Finished means confirmed, not paid.'}</p>
           </div></>}
 
-          {page === 'final' && <>{heading(locked ? 'Final amounts' : 'Amounts preview', locked ? 'Pay the payer outside Split.' : 'Amounts are estimated until the payer closes the bill.')}<div className="sp-card sp-pad sp-stack sp-content">
+          {page === 'final' && <>{heading(locked ? 'Final amounts' : 'Amounts preview', locked ? `Bill confirmed by ${names[payer]}.` : 'Amounts are estimated until the payer closes the bill.')}<div className="sp-card sp-pad sp-stack sp-content">
             {!locked && <button className="sp-button full" disabled={!items.length} onClick={() => setModal('close')}>Review & close bill<LockKeyhole size={18} /></button>}
             <div className="sp-row sp-between"><span>Bill total</span><h2 className="sp-money">{money(total)}</h2></div>
             <div>{names.map((name, i) => <div className="sp-final-person" key={i}>
-              <div className="sp-row">{avatar(i)}<div className="sp-grow"><h3>{name}</h3><p className="sp-small sp-muted">{i === payer ? 'Payer · own share' : `Owes ${names[payer]}`}</p></div><strong className="sp-money">{money(amounts[i].total)}</strong></div>
+              <div className="sp-row">{avatar(i)}<div className="sp-grow"><h3>{name}</h3><p className="sp-small sp-muted">{i === payer ? 'Payer · own share' : paid[i] ? 'Marked paid · self-reported' : `Owes ${names[payer]}`}</p></div><strong className="sp-money">{money(amounts[i].total)}</strong></div>
               <div className="sp-details">Items {money(amounts[i].base)} · tax {money(amounts[i].tax)} · tip {money(amounts[i].tip)}</div>
-              {i !== payer && <button className="sp-link" disabled={!locked || (!venmo.trim() && !zelle.trim())} onClick={() => { setPaymentPerson(i); setModal('payment'); }}>Payment options<ChevronRight size={18} /></button>}
+              {i !== payer && <button className="sp-link" disabled={!locked} onClick={() => openPayment(i)}>{paid[i] ? 'View payment report' : 'Payment options'}<ChevronRight size={18} /></button>}
             </div>)}</div>
             {!!unclaimed.length && <div className="sp-row sp-between sp-small"><span>Still unallocated</span><strong className="sp-money">{money(amounts[4].total)}</strong></div>}
-            <div className="sp-notice"><CircleCheck size={19} /><span>Shares total {money(amounts.reduce((s, x) => s + x.total, 0))}{unclaimed.length ? ', including unallocated items' : ''}. No payments are tracked.</span></div>
-            <button className="sp-link" onClick={() => copy(`Sample bill · Lido\n${names.map((n, i) => `${n}: ${money(amounts[i].total)}${i === payer ? ' (payer)' : ''}`).join('\n')}\n${unclaimed.length ? `Unallocated: ${money(amounts[4].total)}\n` : ''}Total: ${money(total)}\n${locked ? 'Final amounts' : 'Estimated amounts'} · No payments tracked.`, 'Sample breakdown copied')}><Copy size={18} />Copy breakdown</button>
+            <div className="sp-notice"><CircleCheck size={19} /><span>Shares total {money(amounts.reduce((s, x) => s + x.total, 0))}{unclaimed.length ? ', including unallocated items' : ''}. Payments are self-reported, not verified.</span></div>
+            {locked && <button className="sp-button full secondary" onClick={() => { setActive(payer); navigate('dashboard'); }}>Preview payer tracking<Users size={18} /></button>}
+            <button className="sp-link" onClick={() => copy(`Billo sample bill · Lido\n${names.map((n, i) => `${n}: ${money(amounts[i].total)}${i === payer ? ' (payer)' : paid[i] ? ' (marked paid, unverified)' : ' (not marked paid)'}`).join('\n')}\n${unclaimed.length ? `Unallocated: ${money(amounts[4].total)}\n` : ''}Total: ${money(total)}\n${locked ? 'Final amounts' : 'Estimated amounts'} · Demo only.`, 'Sample breakdown copied')}><Copy size={18} />Copy breakdown</button>
           </div></>}
         </div>
       </main>
@@ -410,17 +437,29 @@ export function SplitPrototype() {
       <div className="sp-stack">
         {!!unclaimed.length && <><p className="sp-muted">{names[payer]} will cover these items:</p><div>{unclaimed.map(item => <div className="sp-person-row" key={item.id}><span className="sp-grow">{item.name}</span><strong className="sp-money">{money(item.cents)}</strong></div>)}</div><div className="sp-row sp-between"><strong>With tax & tip</strong><strong className="sp-money">{money(amounts[4].total)}</strong></div><button className="sp-link" onClick={() => { setActive(payer); navigate('select'); }}>Assign to someone else<ChevronRight size={18} /></button></>}
         {confirmed < 4 && <div className="sp-notice warning"><Info size={19} /><span>{4 - confirmed} {4 - confirmed === 1 ? 'person is' : 'people are'} still selecting. Closing keeps their current choices.</span></div>}
-        <p className="sp-small sp-muted">Closing locks all amounts. No payment is made or verified.</p>
+        <p className="sp-small sp-muted">Closing locks amounts and shows each friend their payment options. This demo previews one friend at a time; no money moves.</p>
       </div>
     </Sheet>}
 
-    {modal === 'payment' && <Sheet title={`Pay ${names[payer]}`} description={`${names[paymentPerson]}’s share · payment preview`} onClose={() => setModal(null)}>
-      <div className="sp-stack"><div className="sp-big-amount sp-money">{money(amounts[paymentPerson].total)}</div>
-        <div className="sp-notice warning"><Info size={19} /><span>Demo only. Do not send money to these sample details.</span></div>
-        {venmo.trim() && <div><h3>Venmo</h3><div className="sp-link-box" style={{ marginTop: 10 }}><span className="sp-grow">{venmo}</span><button className="sp-icon" aria-label="Copy sample Venmo username" onClick={() => copy(venmo, 'Sample username copied. Do not send money.')}><Copy size={18} /></button></div><button className="sp-link" onClick={() => setToast('Preview only. No payment app was opened.')}>Preview Venmo handoff<ArrowRight size={17} /></button></div>}
-        {zelle.trim() && <div><h3>Zelle</h3><div className="sp-link-box" style={{ marginTop: 10 }}><span className="sp-grow">{zelle}</span><button className="sp-icon" aria-label="Copy sample Zelle details" onClick={() => copy(zelle, 'Sample Zelle details copied. Do not send money.')}><Copy size={18} /></button></div><p className="sp-small sp-muted" style={{ marginTop: 10 }}>Use your bank’s app. Always check the recipient.</p></div>}
-        <p className="sp-small sp-muted">Split doesn’t process or verify payments.</p>
+    {modal === 'payment' && <Sheet title={paid[paymentPerson] ? 'Payment marked' : 'Your bill is ready'} description={`${names[paymentPerson]} · confirmed by ${names[payer]}`} onClose={() => setModal(null)} footer={<button className="sp-button full secondary" onClick={() => { setActive(payer); navigate('dashboard'); }}>Preview payer tracking<ArrowRight size={18} /></button>}>
+      <div className="sp-payment-hero">{avatar(payer)}<p className="sp-small sp-muted">{paid[paymentPerson] ? 'You marked paid' : `You owe ${names[payer]}`}</p><div className="sp-big-amount sp-money">{money(amounts[paymentPerson].total)}</div><p className="sp-small sp-muted">Tax & tip included</p></div>
+      <div className="sp-payment-options" aria-label="Choose a payment method">
+        {venmo.trim() && <button className="sp-payment-option" aria-pressed={paymentMethod === 'venmo'} onClick={() => setPaymentMethod(paymentMethod === 'venmo' ? null : 'venmo')}><span className="sp-payment-symbol" aria-hidden="true">V</span><span className="sp-grow"><strong>Venmo</strong><small>{venmo}</small></span><ArrowUpRight size={20} /></button>}
+        {zelle.trim() && <button className="sp-payment-option" aria-pressed={paymentMethod === 'zelle'} onClick={() => setPaymentMethod(paymentMethod === 'zelle' ? null : 'zelle')}><span className="sp-payment-symbol" aria-hidden="true">Z</span><span className="sp-grow"><strong>Zelle</strong><small>Through your bank</small></span><ArrowUpRight size={20} /></button>}
+        {!venmo.trim() && !zelle.trim() && <div className="sp-notice"><Info size={19} /><span>Ask {names[payer]} to add payment details. You can still report a payment made another way.</span></div>}
+        {paymentMethod && <div className="sp-payment-handoff">
+          <div className="sp-row sp-between"><strong className="sp-small">{paymentMethod === 'venmo' ? 'Venmo handoff preview' : 'Zelle details'}</strong><button className="sp-icon" aria-label="Hide payment details" onClick={() => setPaymentMethod(null)}><X size={18} /></button></div>
+          <div className="sp-row sp-between sp-small"><span className="sp-muted">Recipient</span><span style={{ overflowWrap: 'anywhere', textAlign: 'right' }}>{paymentMethod === 'venmo' ? venmo : zelle}</span></div>
+          <div className="sp-row sp-between sp-small"><span className="sp-muted">Amount</span><strong className="sp-money">{money(amounts[paymentPerson].total)}</strong></div>
+          <div className="sp-row sp-between sp-small"><span className="sp-muted">Note</span><span>Billo · Lido dinner</span></div>
+          <p>{paymentMethod === 'venmo' ? 'The live app will pass these details to Venmo. Always review the recipient and amount before sending.' : 'Use Zelle in your bank’s app. Recipient and amount may need to be entered manually; bank support varies.'}</p>
+          <button className="sp-link" onClick={() => copy(`DEMO ONLY — DO NOT SEND MONEY\n${paymentMethod === 'venmo' ? venmo : zelle}\n${money(amounts[paymentPerson].total)}\nBillo · Lido dinner`, 'Sample details copied. Do not send money.')}><Copy size={17} />Copy sample details</button>
+        </div>}
       </div>
+      <p className="sp-payment-methods">Choose a method to preview. No payment app opens.</p>
+      <label className="sp-paid-check"><input type="checkbox" checked={paid[paymentPerson]} disabled={!locked || paymentPerson === payer} onChange={e => reportPayment(e.target.checked)} /><span><strong>I paid</strong><small>{paid[paymentPerson] ? `${names[payer]} sees “Marked paid” in this demo.` : `Let ${names[payer]} know after you send it.`}</small></span></label>
+      <p className="sp-small sp-muted">Self-reported. Billo doesn’t verify bank payments.</p>
+      <div className="sp-demo-notice"><Info size={16} /><span>Sample bill. Don’t pay these details. Reports only update this preview and reset on refresh.</span></div>
     </Sheet>}
     {toast && <div className="sp-toast" role="status">{toast}</div>}
   </div>;
