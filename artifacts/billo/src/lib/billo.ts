@@ -2,6 +2,10 @@ import type { BillItem, BillView, Participant, ReceiptDraft } from '@workspace/a
 
 export const money = (cents: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 
+/** Don't present a moving estimate as an amount someone has agreed to pay. */
+export const sharesVisible = (bill: BillView) => bill.status === 'closed' ||
+  (billReady(bill) && bill.participants.length > 0 && bill.participants.every(p => p.finished) && bill.unclaimedItemIds.length === 0);
+
 /** Parses a dollar string into integer cents. Returns null when invalid. */
 export function parseCents(text: string, allowNegative = false): number | null {
   const t = text.trim();

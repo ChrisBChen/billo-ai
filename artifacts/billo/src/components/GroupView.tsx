@@ -3,7 +3,7 @@ import { CircleCheck, Plus, Clock3, LockKeyhole, RotateCcw, Utensils } from 'luc
 import type { BillView } from '@workspace/api-client-react';
 import { Avatar } from '@/components/Chrome';
 import type { Change } from '@/hooks/use-bill-actions';
-import { billReady, money } from '@/lib/billo';
+import { billReady, money, sharesVisible } from '@/lib/billo';
 
 export function GroupView({ bill, send, pending, onClose, onPay }: { bill: BillView; send: (c: Change, o?: { success?: string }) => void; pending: boolean; onClose: () => void; onPay: () => void }) {
   const isHost = bill.meId === bill.payerId, closed = bill.status === 'closed';
@@ -23,7 +23,7 @@ export function GroupView({ bill, send, pending, onClose, onPay }: { bill: BillV
             : <span className={`sp-status ${p.finished ? 'done' : ''}`}>{p.finished ? <><CircleCheck size={13} />Confirmed</> : <><Clock3 size={13} />Choosing</>}</span>}
           {p.isPayer && !closed && <span className={`sp-status ${p.finished ? 'done' : ''}`} style={{ marginLeft: 8 }}>{p.finished ? 'Confirmed' : 'Choosing'}</span>}
         </div>
-        <span className="sp-money">{money(p.totalCents)}</span>
+        {sharesVisible(bill) && <span className="sp-money">{money(p.totalCents)}</span>}
       </div>)}
       {bill.participants.length === 1 && <p className="sp-small sp-muted" style={{ padding: '12px 0' }}>Nobody else has joined yet. Share the link from Invite.</p>}
     </div>

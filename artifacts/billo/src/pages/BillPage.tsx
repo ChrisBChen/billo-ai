@@ -14,7 +14,7 @@ import { CloseSheet } from '@/components/CloseSheet';
 import { PaymentSheet } from '@/components/PaymentSheet';
 import { Sheet } from '@/components/Sheet';
 import { useBillActions } from '@/hooks/use-bill-actions';
-import { billReady, errorMessage, errorStatus } from '@/lib/billo';
+import { billReady, errorMessage, errorStatus, sharesVisible } from '@/lib/billo';
 
 type Tab = 'items' | 'receipt' | 'share' | 'group';
 type Modal = 'close' | 'payment' | 'breakdown' | null;
@@ -124,6 +124,6 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
     </div>
     {modal === 'close' && isHost && !closed && !reviewRequired && <CloseSheet bill={bill} send={send} pending={pending} onClose={() => setModal(null)} />}
     {modal === 'payment' && closed && !isHost && <PaymentSheet bill={bill} send={send} pending={pending} notify={notify} onClose={() => setModal(null)} />}
-    {modal === 'breakdown' && <Sheet title={closed ? 'Your final share' : 'Your estimated share'} onClose={() => setModal(null)}><BreakdownLines bill={bill} /></Sheet>}
+    {modal === 'breakdown' && sharesVisible(bill) && <Sheet title={closed ? 'Your final share' : 'Your share'} onClose={() => setModal(null)}><BreakdownLines bill={bill} /></Sheet>}
   </>;
 }

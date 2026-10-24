@@ -7,7 +7,7 @@ The product helps friends split a bill live while still sitting at the table, ra
 
 **Why:** This is the core problem stated in the user's idea; it distinguishes the app from ongoing expense tracking.
 
-**How to apply:** Prioritize fast joining, shared-item selection, and clear provisional versus final amounts. The payer participates in the split too.
+**How to apply:** Prioritize fast joining and shared-item selection. Show receipt item prices while choosing, but defer personal split amounts until the group finishes. The payer participates in the split too.
 
 Both payers and friends should have regular login rather than Google-only sign-in. Payments occur outside the app using the payer's Venmo or Zelle details.
 
@@ -32,6 +32,12 @@ Joining and editing must remain stable while other people act; live updates must
 **Why:** The user reported that flashing name entry prevented use on both mobile and desktop, and requested queued simultaneous edits instead of lockouts.
 
 **How to apply:** Keep unauthenticated join forms outside private-bill polling. Serialize own-item selections; distinguish real item/receipt changes from unrelated participant activity.
+
+Confirmation means approval of one's selected items, not a changing provisional amount. Other people joining, selecting a shared item, or confirming must not clear existing confirmations.
+
+**Why:** The user found repeated reconfirmation and changing personal amounts disruptive and explicitly requested selection-only screens until everyone confirms.
+
+**How to apply:** Only one's own selection edits clear one's own confirmation. While people are choosing, show original item prices and nonmonetary selection labels, not personal totals, per-item shares, Group amounts, or breakdowns. Reveal split amounts after everyone confirms and unselected items are resolved; closing still locks final amounts. Explicit receipt changes or the payer asking everyone to reconfirm remain distinct actions.
 
 The host wants to adjust the receipt amount directly and add tip without a fees/discounts reconciliation workflow.
 

@@ -82,7 +82,7 @@ router.post("/billo/bills/:id/join", joinLimiter, async (req, res): Promise<void
     requireThat(s.participants.length < 30, "This bill has reached its 30-person limit.");
     requireThat(!s.participants.some(p => p.name.toLowerCase() === parsed.data.name.trim().toLowerCase()), "That name is taken. Add an initial to distinguish yourself.");
     s.participants.push({ id: me, name: parsed.data.name.trim(), finished: false, paid: false });
-    invalidate(s); s.revision++;
+    s.revision++;
   });
   await addSession(id, me, res);
   send(res, state, me);

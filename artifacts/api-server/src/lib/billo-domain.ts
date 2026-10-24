@@ -160,7 +160,9 @@ export function change(s: BillState, meId: string, input: BillChange) {
         if (had !== input.claimed) {
           item.allocations = item.allocations.filter(a => a.participantId !== meId);
           if (input.claimed) item.allocations.push({ participantId: meId, value: 1 });
-          invalidate(s);
+          // Confirmation is of this person's choices, not a provisional price.
+          // Other selectors must not be bounced back into confirming again.
+          me.finished = false;
         }
         break;
       }

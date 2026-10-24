@@ -55,6 +55,21 @@ test("confirmation gates claims and only payer may confirm; legacy allocation ed
   assert.throws(() => change(s, "guest", { action: "claim", itemId: "pizza", claimed: true, allocations: [{ participantId: "host", value: 1 }], revision: 0 }), /yourself/);
   assert.throws(() => change(s, "guest", { action: "claim", itemId: "pizza", revision: 0 }), /whether you ate/);
 });
+test("confirmation sticks when other people select, deselect or confirm the same item", () => {
+  const s = bill();
+  select(s, "guest");
+  change(s, "guest", { action: "finish", finished: true, revision: 0 });
+  select(s, "host"); select(s, "third");
+  assert.equal(s.participants[1]!.finished, true);
+  change(s, "host", { action: "finish", finished: true, revision: 0 });
+  change(s, "third", { action: "finish", finished: true, revision: 0 });
+  assert.equal(s.participants.every(p => p.finished), true);
+  select(s, "third", false);
+  assert.deepEqual(s.participants.map(p => p.finished), [true, true, false]);
+  // Only changing your own choices requires your own confirmation again.
+  select(s, "guest", false);
+  assert.deepEqual(s.participants.map(p => p.finished), [true, false, false]);
+});
 test("unselected items remain uncovered until host explicitly takes them when closing", () => {
   const s = bill();
   s.receipt.items.push({ id: "drink", name: "Drink", cents: 1000, mode: "equal", units: 1, allocations: [] });
