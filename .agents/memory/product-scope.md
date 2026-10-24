@@ -39,6 +39,12 @@ The Summary box's green state means everyone has confirmed, not that the bill is
 
 **Why:** The user explicitly wants green even when unclaimed items remain. Keep unclaimed counts and close-bill eligibility separate from confirmation color.
 
+The dark-mode pending box should read as saturated burnt orange, not a muted brown tint.
+
+**Why:** The user repeatedly found the subtle dark-orange backgrounds too brown.
+
+**How to apply:** Preserve a clearly orange hue and sufficient light text contrast when adjusting this status box; do not default back to a nearly neutral dark warning tint.
+
 **Why:** The user found repeated reconfirmation and changing personal amounts disruptive, then explicitly required both payer and friend My items views to withhold personal dollar shares until the payer closes the bill.
 
 **How to apply:** Only one's own selection edits clear one's own confirmation. My items is selection-only for both roles until closure: show original item prices, not personal totals, per-item dollar shares, or breakdowns—even if everyone has confirmed. The payer alone sees Summary and may see provisional amounts there while the bill remains open; do not repeat totals across tabs. Explicit receipt changes or the payer asking everyone to reconfirm remain distinct actions.
