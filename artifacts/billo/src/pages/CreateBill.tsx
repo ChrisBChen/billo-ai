@@ -11,6 +11,33 @@ const CREATE_BILL_HEADLINES = [
   'Your tab awaits.',
   'Let the splitting begin.',
 ];
+const CREATE_BILL_HEADLINE_KEY = 'billo-create-bill-headline';
+let fallbackHeadlineIndex = 0;
+
+function getSavedHeadlineIndex() {
+  if (typeof window === 'undefined') return fallbackHeadlineIndex;
+  try {
+    const stored = window.localStorage.getItem(CREATE_BILL_HEADLINE_KEY);
+    const saved = stored === null ? fallbackHeadlineIndex : Number(stored);
+    if (Number.isInteger(saved) && saved >= 0 && saved < CREATE_BILL_HEADLINES.length) {
+      fallbackHeadlineIndex = saved;
+      return saved;
+    }
+  } catch {
+    // Keep the in-memory sequence if browser storage is unavailable.
+  }
+  return fallbackHeadlineIndex;
+}
+
+function saveNextHeadlineIndex(index: number) {
+  const nextIndex = (index + 1) % CREATE_BILL_HEADLINES.length;
+  fallbackHeadlineIndex = nextIndex;
+  try {
+    window.localStorage.setItem(CREATE_BILL_HEADLINE_KEY, String(nextIndex));
+  } catch {
+    // Storage may be unavailable in private browsing; bill creation still works.
+  }
+}
 
 export default function CreateBill() {
   const [, navigate] = useLocation();
@@ -20,13 +47,10 @@ export default function CreateBill() {
   const [venmo, setVenmo] = useState('');
   const [zelle, setZelle] = useState('');
   const [tried, setTried] = useState(false);
-  const [headlineIndex, setHeadlineIndex] = useState(0);
+  const [headlineIndex] = useState(getSavedHeadlineIndex);
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      setHeadlineIndex(index => (index + 1) % CREATE_BILL_HEADLINES.length);
-    }, 4500);
-    return () => window.clearInterval(interval);
-  }, []);
+    saveNextHeadlineIndex(headlineIndex);
+  }, [headlineIndex]);
   const v = venmo.trim().replace(/^@/, ''), z = zelle.trim();
   const errors = {
     name: !name.trim() ? 'Add your name so friends know who to pay.' : '',
@@ -38,7 +62,11 @@ export default function CreateBill() {
     e.preventDefault(); setTried(true);
     if (!valid || create.isPending) return;
     create.mutate({ data: { name: name.trim(), title: 'New bill', ...(v ? { venmo: v } : {}), ...(z ? { zelle: z } : {}) } }, {
-      onSuccess: bill => { qc.setQueryData(getGetBillQueryKey(bill.id), bill); navigate('/b/' + bill.id); },
+      onSuccess: bill => {
+        saveNextHeadlineIndex(headlineIndex);
+        qc.setQueryData(getGetBillQueryKey(bill.id), bill);
+        navigate('/b/' + bill.id);
+      },
     });
   }
   return <div className="split-v2">

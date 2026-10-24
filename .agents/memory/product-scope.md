@@ -21,6 +21,12 @@ The user anticipates the great majority of usage on phones and wants this produc
 
 **How to apply:** Prioritize readable mobile text, generous touch targets, and easy item selection. Preserve useful short instructions, not long thematic headings. Tip entry should support percentages.
 
+The create-bill headline must differ from the last one displayed, without timed rotation.
+
+**Why:** The user clarified that every time the create page is shown, they want a different heading from the prior display.
+
+**How to apply:** Keep each heading stable while its form is open; persist the next phrase when the page displays so leaving and reopening the form advances even if no bill was created.
+
 Each person selects the items they ate; each item is split equally among its selectors. No item-level dollar, percentage, or unit workflows remain.
 
 **Why:** The user explicitly replaced payer-defined split methods with simple selection and approved converting positive claims on existing open bills to equal selections.
