@@ -1,10 +1,16 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Info } from 'lucide-react';
 import { getGetBillQueryKey, useCreateBill } from '@workspace/api-client-react';
 import { OfflineBanner, Spinner, Topbar } from '@/components/Chrome';
 import { errorMessage } from '@/lib/billo';
+
+const CREATE_BILL_HEADLINES = [
+  "Let's get down to bill-ness.",
+  'Your tab awaits.',
+  'Let the splitting begin.',
+];
 
 export default function CreateBill() {
   const [, navigate] = useLocation();
@@ -14,6 +20,13 @@ export default function CreateBill() {
   const [venmo, setVenmo] = useState('');
   const [zelle, setZelle] = useState('');
   const [tried, setTried] = useState(false);
+  const [headlineIndex, setHeadlineIndex] = useState(0);
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setHeadlineIndex(index => (index + 1) % CREATE_BILL_HEADLINES.length);
+    }, 4500);
+    return () => window.clearInterval(interval);
+  }, []);
   const v = venmo.trim().replace(/^@/, ''), z = zelle.trim();
   const errors = {
     name: !name.trim() ? 'Add your name so friends know who to pay.' : '',
@@ -33,7 +46,7 @@ export default function CreateBill() {
     <OfflineBanner />
     <div className="sp-layout" style={{ display: 'block', maxWidth: 620 }}>
       <main className="sp-page">
-        <div className="sp-heading sp-hero-create"><h1 style={{ marginTop: 8 }}>Start a bill</h1></div>
+        <div className="sp-heading sp-hero-create"><h1 style={{ marginTop: 8 }} aria-live="off">{CREATE_BILL_HEADLINES[headlineIndex]}</h1></div>
         <form className="sp-stack" onSubmit={submit} noValidate>
           <div className="sp-card sp-pad sp-stack">
             <h2><label htmlFor="host-name">Your name</label></h2>
