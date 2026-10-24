@@ -45,7 +45,6 @@ export default function CreateBill() {
           {tried && errors.pay && <div className="sp-notice warning"><Info size={17} />{errors.pay}</div>}
           {create.isError && <div className="sp-notice warning" role="alert"><Info size={17} />{errorMessage(create.error, 'The bill could not be created. Try again.')}</div>}
           <button type="submit" data-testid="button-create-bill" className="sp-button full" disabled={create.isPending}>{create.isPending ? <><Spinner />Creating</> : <>Continue<ArrowRight size={18} /></>}</button>
-          <p className="sp-small sp-muted">Anyone with the link can join this bill by name.</p>
         </form>
         <div className="sp-stack" style={{ gap: 14, marginTop: 28 }}>
           {[{ icon: Users, t: 'Friends tap what they had', d: 'Share items equally, by dollars, percent, or units.' }, { icon: ReceiptText, t: 'Close and get paid back', d: 'Tax and tip follow each person’s items.' }].map(({ icon: Icon, t, d }) => <div key={t} className="sp-row" style={{ alignItems: 'flex-start' }}><Icon size={22} color="var(--sp-accent)" /><div><h3>{t}</h3><p className="sp-small sp-muted">{d}</p></div></div>)}
