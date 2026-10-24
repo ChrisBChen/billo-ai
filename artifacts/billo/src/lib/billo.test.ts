@@ -39,13 +39,16 @@ test('closing reveals final shares to friends, including forced closure', () => 
   assert.equal(sharesVisible(bill), true);
 });
 
-test('payer estimates remain visible before everyone confirms or all items are claimed', () => {
+test('payer My items hides shares until closing, just like the friend view', () => {
   const bill = fixture('payer');
+  assert.equal(sharesVisible(bill), false);
   bill.participants.forEach(p => { p.finished = false; });
   bill.unclaimedItemIds = ['unclaimed'];
-  assert.equal(sharesVisible(bill), true);
+  assert.equal(sharesVisible(bill), false);
   bill.receiptConfirmed = false;
   assert.equal(sharesVisible(bill), false);
+  bill.status = 'closed';
+  assert.equal(sharesVisible(bill), true);
 });
 
 test('payer progress separates confirmed, choosing and unallocated shares including tax and tip', () => {

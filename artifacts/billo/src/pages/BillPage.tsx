@@ -10,7 +10,6 @@ import { ReceiptEditor } from '@/components/ReceiptEditor';
 import { ReceiptView } from '@/components/ReceiptView';
 import { ShareView } from '@/components/ShareView';
 import { GroupView } from '@/components/GroupView';
-import { PayerTotals } from '@/components/PayerTotals';
 import { CloseSheet } from '@/components/CloseSheet';
 import { PaymentSheet } from '@/components/PaymentSheet';
 import { Sheet } from '@/components/Sheet';
@@ -114,7 +113,6 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
             <h1>{titles[tab][0]}</h1>{titles[tab][1] && <p>{titles[tab][1]}</p>}
           </div>
           {!reviewRequired && <nav className="sp-mobile-tabs" aria-label="Bill navigation">{visibleNav.map(({ tab: t, label }) => <button key={t} data-testid={`tab-${t}`} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}>{label}</button>)}</nav>}
-          {isHost && !reviewRequired && <PayerTotals bill={bill} />}
           {tab === 'items' && <ItemsView bill={bill} send={send} pending={pending} onBreakdown={() => setModal('breakdown')} onPrimary={primary} onAddReceipt={() => go('receipt')} />}
           {tab === 'receipt' && (editing
             ? <ReceiptEditor key={editing.source + editing.draft.items.length} bill={bill} draft={editing.draft} source={editing.source} send={send} pending={pending} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); go('share'); }} />

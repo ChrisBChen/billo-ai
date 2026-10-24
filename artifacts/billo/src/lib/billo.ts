@@ -2,9 +2,8 @@ import type { BillItem, BillView, Participant, ReceiptDraft } from '@workspace/a
 
 export const money = (cents: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 
-/** Only the payer sees estimates; friends see their amounts after closing. */
-export const sharesVisible = (bill: BillView) => bill.status === 'closed' ||
-  (bill.meId === bill.payerId && billReady(bill));
+/** My items shows personal dollar shares only after closing, for both roles. */
+export const sharesVisible = (bill: BillView) => bill.status === 'closed';
 
 /** Parses a dollar string into integer cents. Returns null when invalid. */
 export function parseCents(text: string, allowNegative = false): number | null {
