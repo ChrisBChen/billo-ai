@@ -1,21 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { Info, LockKeyhole, ReceiptText, Share2, Users, Utensils, type LucideIcon } from 'lucide-react';
-import { getGetBillQueryKey, useGetBill, type BillItem, type BillView, type ReceiptDraft } from '@workspace/api-client-react';
+import { getGetBillQueryKey, useGetBill, type BillView, type ReceiptDraft } from '@workspace/api-client-react';
 import { OfflineBanner, SkeletonPage, Toast, Topbar, useToastMessage } from '@/components/Chrome';
 import { JoinScreen } from '@/components/JoinScreen';
 import { ItemsView, BreakdownLines } from '@/components/ItemsView';
 import { ReceiptEntry } from '@/components/ReceiptEntry';
 import { ReceiptEditor } from '@/components/ReceiptEditor';
 import { ReceiptView } from '@/components/ReceiptView';
-import { ClaimSheet } from '@/components/ClaimSheet';
 import { ShareView } from '@/components/ShareView';
 import { GroupView } from '@/components/GroupView';
 import { CloseSheet } from '@/components/CloseSheet';
 import { PaymentSheet } from '@/components/PaymentSheet';
 import { Sheet } from '@/components/Sheet';
 import { useBillActions } from '@/hooks/use-bill-actions';
-import { billReady, errorMessage, errorStatus, money } from '@/lib/billo';
+import { billReady, errorMessage, errorStatus } from '@/lib/billo';
 
 type Tab = 'items' | 'receipt' | 'share' | 'group';
 type Modal = 'close' | 'payment' | 'breakdown' | null;
@@ -31,6 +30,7 @@ function BillSession({ params }: { params: { id: string } }) {
   const query = useGetBill(id, { query: {
     queryKey: getGetBillQueryKey(id), enabled: !joining, retry: false,
     refetchInterval: q => q.state.data && errorStatus(q.state.error) !== 401 ? 1500 : false,
+    refetchIntervalInBackground: true,
     refetchOnWindowFocus: q => !!q.state.data && errorStatus(q.state.error) !== 401,
     refetchOnReconnect: q => !!q.state.data && errorStatus(q.state.error) !== 401,
   } });
@@ -56,23 +56,20 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
   const isHost = bill.meId === bill.payerId, closed = bill.status === 'closed';
   const [selectedTab, setTab] = useState<Tab>(isHost && !billReady(bill) ? 'receipt' : 'items');
   const [modal, setModal] = useState<Modal>(null);
-  const [splitItemId, setSplitItemId] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ draft: ReceiptDraft; source: string } | null>(null);
   const reviewRequired = !closed && (!bill.receiptConfirmed || !!editing);
   const tab: Tab = reviewRequired ? 'receipt' : selectedTab;
   const { send, pending } = useBillActions(bill, notify);
   const shown = useRef(false);
   useEffect(() => {
-    if (reviewRequired) { setSplitItemId(null); setModal(null); }
+    if (reviewRequired) setModal(null);
   }, [reviewRequired]);
 
   useEffect(() => {
-    if (closed && !isHost && !shown.current) { shown.current = true; setSplitItemId(null); setModal('payment'); }
+    if (closed && !isHost && !shown.current) { shown.current = true; setModal('payment'); }
     if (closed) setEditing(null);
   }, [closed, isHost]);
 
-  const splitItem = splitItemId ? bill.receipt.items.find(i => i.id === splitItemId) : undefined;
-  useEffect(() => { if (splitItemId && !splitItem) { setSplitItemId(null); notify('That item was removed from the receipt.'); } }, [splitItemId, splitItem, notify]);
 
   function go(t: Tab) { setTab(t); window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); }
   function primary() {
@@ -88,9 +85,9 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
   ];
   const titles: Record<Tab, [string, string]> = {
     items: closed ? ['Your items', 'Amounts are locked.'] : ['Claim your share', ''],
-    receipt: editing ? ['Review receipt', 'Check every line before saving.'] : isHost && !bill.receipt.items.length ? ['Add the receipt', ''] : isHost && !closed && !billReady(bill) ? ['Set split methods', 'Edit and pick $, %, or # per item.'] : ['Receipt', ''],
-    share: ['Invite friends', 'Everyone at the table joins with this link.'],
-    group: closed ? ['Group & payments', 'Who has reported paying.'] : ['Group', 'Who is in and who is done.'],
+    receipt: editing ? ['Review receipt', 'Check every line before confirming.'] : isHost && !bill.receipt.items.length ? ['Add the receipt', ''] : isHost && !closed && !billReady(bill) ? ['Confirm the receipt', 'Review the items and tip.'] : ['Receipt', ''],
+    share: ['Invite friends', ''],
+    group: closed ? ['Group & payments', 'Who has reported paying.'] : ['Group', ''],
   };
   const payerName = bill.participants.find(p => p.isPayer)?.name ?? '';
 
@@ -108,17 +105,15 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
     <div className="sp-layout">
       <aside className="sp-rail">
         <div className="sp-restaurant"><Utensils size={25} /><div><h3>{bill.title}</h3><p className="sp-small sp-muted">{payerName} paid · {bill.participants.length} {bill.participants.length === 1 ? 'person' : 'people'}</p></div></div>
-        <nav aria-label="Bill navigation">{nav.map(({ tab: t, label, icon: Icon }) => <button key={t} data-testid={`nav-${t}`} disabled={reviewRequired && t !== 'receipt'} title={reviewRequired && t !== 'receipt' ? 'Confirm the receipt and tip first' : undefined} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}><Icon size={18} />{label}</button>)}</nav>
-        <p className="sp-rail-note">{closed ? `Closed · ${money(bill.outstandingCents)} still owed` : 'Updates live as people choose.'}</p>
+        {!reviewRequired && <nav aria-label="Bill navigation">{nav.map(({ tab: t, label, icon: Icon }) => <button key={t} data-testid={`nav-${t}`} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}><Icon size={18} />{label}</button>)}</nav>}
       </aside>
       <main className="sp-main">
         <div key={tab} className={`sp-page ${tab === 'items' ? 'sp-select-page' : ''}`}>
           <div className="sp-heading">
             <h1>{titles[tab][0]}</h1>{titles[tab][1] && <p>{titles[tab][1]}</p>}
           </div>
-          <nav className="sp-mobile-tabs" aria-label="Bill navigation">{(['items', 'receipt', 'share', 'group'] as Tab[]).map((t, i) => <button key={t} data-testid={`tab-${t}`} disabled={reviewRequired && t !== 'receipt'} title={reviewRequired && t !== 'receipt' ? 'Confirm the receipt and tip first' : undefined} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}>{['Items', 'Receipt', 'Invite', 'Group'][i]}</button>)}</nav>
-          {reviewRequired && <p className="sp-notice" style={{ marginBottom: 16 }} data-testid="status-receipt-review"><LockKeyhole size={16} />Confirm the receipt and tip to unlock items, invites, and the group.</p>}
-          {tab === 'items' && <ItemsView bill={bill} send={send} pending={pending} onSplit={(item: BillItem) => setSplitItemId(item.id)} onBreakdown={() => setModal('breakdown')} onPrimary={primary} onAddReceipt={() => go('receipt')} />}
+          {!reviewRequired && <nav className="sp-mobile-tabs" aria-label="Bill navigation">{(['items', 'receipt', 'share', 'group'] as Tab[]).map((t, i) => <button key={t} data-testid={`tab-${t}`} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}>{['Items', 'Receipt', 'Invite', 'Group'][i]}</button>)}</nav>}
+          {tab === 'items' && <ItemsView bill={bill} send={send} pending={pending} onBreakdown={() => setModal('breakdown')} onPrimary={primary} onAddReceipt={() => go('receipt')} />}
           {tab === 'receipt' && (editing
             ? <ReceiptEditor key={editing.source + editing.draft.items.length} bill={bill} draft={editing.draft} source={editing.source} send={send} pending={pending} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); go('share'); }} />
             : isHost && !closed && !bill.receipt.items.length ? <ReceiptEntry bill={bill} onDraft={(draft, source) => setEditing({ draft, source })} />
@@ -128,7 +123,6 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
         </div>
       </main>
     </div>
-    {splitItem && !closed && !reviewRequired && <ClaimSheet key={splitItem.id} bill={bill} item={splitItem} send={send} pending={pending} onClose={() => setSplitItemId(null)} />}
     {modal === 'close' && isHost && !closed && !reviewRequired && <CloseSheet bill={bill} send={send} pending={pending} onClose={() => setModal(null)} />}
     {modal === 'payment' && closed && !isHost && <PaymentSheet bill={bill} send={send} pending={pending} notify={notify} onClose={() => setModal(null)} />}
     {modal === 'breakdown' && <Sheet title={closed ? 'Your final share' : 'Your estimated share'} onClose={() => setModal(null)}><BreakdownLines bill={bill} /></Sheet>}

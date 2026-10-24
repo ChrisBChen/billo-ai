@@ -8,7 +8,7 @@ export type BillState = {
   id: string; title: string; payerId: string; status: "open" | "closed";
   revision: number; splitMode: "equal" | "itemized"; receipt: ReceiptDraft;
   participants: Member[]; venmo: string; zelle: string;
-  scans: number[]; finalParticipants?: Participant[]; receiptRevision?: number; receiptConfirmed?: boolean;
+  scans: number[]; finalParticipants?: Participant[]; receiptRevision?: number; receiptConfirmed?: boolean; selectionVersion?: number;
 };
 export function requireThat(condition: unknown, message: string, status = 400): asserts condition {
   if (!condition) throw new BillError(status, message);
@@ -40,9 +40,7 @@ export function validateReceipt(r: ReceiptDraft) {
 }
 export function setupReady(s: BillState) {
   // Previously saved receipts predate the explicit flag and were already reviewed.
-  return s.receiptConfirmed !== false && s.splitMode === "itemized" && s.receipt.items.length > 0 && s.receipt.items.every(i =>
-    ["amount", "percent", "units"].includes(i.mode) &&
-    Number.isInteger(i.units) && i.units >= 1 && i.units <= 10000);
+  return s.receiptConfirmed !== false && s.splitMode === "itemized" && s.receipt.items.length > 0 && s.receipt.items.every(i => i.mode === "equal");
 }
 function allocationTarget(item: BillItem) {
   return item.mode === "amount" ? item.cents : item.mode === "percent" ? 10000 : item.units;
@@ -109,16 +107,19 @@ export function view(s: BillState, meId: string): BillView {
   };
 }
 export function invalidate(s: BillState) { s.participants.forEach(p => { p.finished = false; }); }
-function validAllocations(item: BillItem, s: BillState) {
-  const ids = item.allocations.map(a => a.participantId);
-  requireThat(new Set(ids).size === ids.length && ids.every(id => s.participants.some(p => p.id === id)), "Choose valid participants once each.");
-  requireThat(item.allocations.length <= 30, "Too many allocations.");
-  const sum = item.allocations.reduce((t, a) => t + a.value, 0);
-  requireThat(item.allocations.every(a => Number.isInteger(a.value) && a.value >= 0), "Use nonnegative whole cents, hundredths of a percent, or units.");
-  if (item.mode === "amount") requireThat(sum <= item.cents, "Dollar claims cannot exceed the item price.");
-  if (item.mode === "percent") requireThat(sum <= 10000, "Percent shares cannot exceed 100%.");
-  if (item.mode === "units") requireThat(sum <= item.units, "Claimed units cannot exceed total units.");
-  if (item.mode === "equal") requireThat(item.allocations.every(a => a.value === 0 || a.value === 1), "Equal shares must be zero or one.");
+// Lazy, persisted upgrade under the store's row lock. Never rewrite closed bills.
+export function upgradeSelections(s: BillState) {
+  if (s.status === "closed" || s.selectionVersion === 1) return;
+  s.receipt.items = s.receipt.items.map(item => ({
+    ...item, mode: "equal", units: 1,
+    allocations: s.participants.filter(p => s.splitMode === "equal" || item.allocations.some(a => a.participantId === p.id && a.value > 0))
+      .map(p => ({ participantId: p.id, value: 1 })),
+  }));
+  s.splitMode = "itemized";
+  s.selectionVersion = 1;
+  invalidate(s);
+  s.revision++;
+  s.receiptRevision = s.revision;
 }
 export function change(s: BillState, meId: string, input: BillChange) {
   // mutate() holds a database row lock: independent own-share writes are queued
@@ -138,38 +139,34 @@ export function change(s: BillState, meId: string, input: BillChange) {
         host(); requireThat(input.receipt, "Receipt is required.");
         const receipt = input.receipt!;
         validateReceipt(receipt);
-        requireThat(setupReady({ ...s, splitMode: "itemized", receipt, receiptConfirmed: true }), "Choose dollars, percent, or units for every item, and set each unit total before confirming.");
+        requireThat(receipt.items.every(i => i.mode === "equal"), "Items now split equally among the people who select them. Refresh to use the new receipt editor.");
         const previousItems = new Map(s.receipt.items.map(i => [i.id, i]));
         s.receipt = { ...receipt, title: receipt.title.trim(), items: receipt.items.map(i => {
           const previous = previousItems.get(i.id);
-          const unchanged = previous && previous.cents === i.cents && previous.mode === i.mode && previous.units === i.units;
-          return { ...i, name: i.name.trim(), allocations: unchanged ? previous.allocations : [] };
+          const unchanged = previous && previous.cents === i.cents;
+          return { ...i, mode: "equal", units: 1, name: i.name.trim(), allocations: unchanged ? previous.allocations : [] };
         }), warnings: [] };
         s.receiptRevision = s.revision + 1;
         s.receiptConfirmed = true;
         s.splitMode = "itemized";
         s.title = s.receipt.title; invalidate(s); break;
       }
-      case "mode":
-        host(); requireThat(input.splitMode === "itemized", "Set a split method on each receipt item.");
-        s.splitMode = input.splitMode!; invalidate(s); break;
       case "claim": {
-        throw new BillError(400, "The payer must configure each item first. Use the own-share claim form.");
-      }
-      case "allocate": {
         const item = s.receipt.items.find(i => i.id === input.itemId);
-        requireThat(item && input.itemMode && input.allocations, "Item and allocation details are required.");
-        requireThat(setupReady(s), "The payer must finish setting up the receipt first.", 409);
-        requireThat(input.itemMode === item!.mode && (input.units === undefined || input.units === item!.units), "Only the payer can change split methods and unit totals in receipt setup.", 403);
-        requireThat(input.allocations!.length <= 1 && input.allocations!.every(a => a.participantId === meId), "You can only claim or change your own share.", 403);
-        requireThat(input.allocations!.every(a => Number.isInteger(a.value) && a.value >= 0), "Enter a nonnegative claim.");
-        const next = { ...item!, allocations: [
-          ...item!.allocations.filter(a => a.participantId !== meId),
-          ...input.allocations!.filter(a => a.value > 0),
-        ] };
-        validAllocations(next, s);
-        Object.assign(item!, next); invalidate(s); break;
+        requireThat(item && typeof input.claimed === "boolean", "Choose an item and whether you ate it.");
+        requireThat(setupReady(s), "The payer must confirm the receipt and tip first.", 409);
+        requireThat(input.allocations === undefined && input.itemMode === undefined && input.units === undefined, "You can only select or deselect items for yourself.", 403);
+        const had = item.allocations.some(a => a.participantId === meId);
+        if (had !== input.claimed) {
+          item.allocations = item.allocations.filter(a => a.participantId !== meId);
+          if (input.claimed) item.allocations.push({ participantId: meId, value: 1 });
+          invalidate(s);
+        }
+        break;
       }
+      case "mode":
+      case "allocate":
+        throw new BillError(400, "Items now split equally among the people who select them. Refresh and tap your items.");
       case "finish":
         requireThat(setupReady(s), "The payer must confirm the receipt and tip first.", 409);
         requireThat(typeof input.finished === "boolean", "Choose a confirmation status.");

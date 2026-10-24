@@ -1,7 +1,7 @@
 import { randomBytes, createHash, randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import { pool } from "@workspace/db";
-import { BillError, type BillState } from "./billo-domain";
+import { BillError, upgradeSelections, type BillState } from "./billo-domain";
 
 export const newId = () => randomBytes(18).toString("base64url");
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -16,7 +16,8 @@ export async function findBill(id: string): Promise<BillState> {
   if (!/^[\w-]{24}$/.test(id)) throw new BillError(404, "Bill not found.");
   const result = await pool.query("SELECT state FROM billo_bills WHERE id=$1", [id]);
   if (!result.rowCount) throw new BillError(404, "Bill not found.");
-  return result.rows[0].state;
+  const state: BillState = result.rows[0].state;
+  return state.status === "open" && state.selectionVersion !== 1 ? mutate(id, () => {}) : state;
 }
 export async function identify(req: Request, id: string): Promise<string | null> {
   const token = req.cookies?.[cookieName(id)];
@@ -37,6 +38,7 @@ export async function mutate(id: string, fn: (s: BillState) => void): Promise<Bi
     const result = await client.query("SELECT state FROM billo_bills WHERE id=$1 FOR UPDATE", [id]);
     if (!result.rowCount) throw new BillError(404, "Bill not found.");
     const state: BillState = result.rows[0].state;
+    upgradeSelections(state);
     fn(state);
     await client.query("UPDATE billo_bills SET state=$2::jsonb WHERE id=$1", [id, JSON.stringify(state)]);
     await client.query("COMMIT");

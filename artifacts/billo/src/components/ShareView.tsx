@@ -17,7 +17,7 @@ export function ShareView({ bill, notify, onSetup }: { bill: BillView; notify: (
   if (!billReady(bill)) {
     const host = bill.meId === bill.payerId;
     return <div className="sp-card sp-pad sp-stack sp-center sp-content" data-testid="status-share-setup"><div className="sp-state-symbol"><Settings2 size={26} /></div>
-      <h2>Finish setup first</h2><p className="sp-muted">{host ? 'Add items and pick $, %, or # for each.' : 'The payer is still setting up.'}</p>
+      <h2>Confirm the receipt first</h2><p className="sp-muted">{host ? 'Review the receipt and tip before inviting friends.' : 'The payer is still reviewing the receipt.'}</p>
       {host && <button className="sp-button" data-testid="button-share-setup" onClick={onSetup}>Go to receipt</button>}</div>;
   }
   return <div className="sp-card sp-pad sp-stack sp-content">

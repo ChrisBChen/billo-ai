@@ -66,12 +66,4 @@ export function errorMessage(e: unknown, fallback = 'Something went wrong. Try a
 export const billUrl = (id: string) => window.location.origin + import.meta.env.BASE_URL.replace(/\/$/, '') + '/b/' + id;
 export const newId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2));
 
-export const SPLIT_MODES = ['amount', 'percent', 'units'] as const;
-export type ItemMode = typeof SPLIT_MODES[number];
-export const modeLabel: Record<ItemMode, string> = { amount: '$', percent: '%', units: '#' };
-export const itemConfigured = (i: BillItem) => (i.mode === 'amount' || i.mode === 'percent' || (i.mode === 'units' && Number.isInteger(i.units) && i.units >= 1 && i.units <= 10000));
-export const billReady = (bill: BillView) => bill.receiptConfirmed && bill.splitMode === 'itemized' && bill.receipt.items.length > 0 && bill.receipt.items.every(itemConfigured);
-export const itemTarget = (i: BillItem) => i.mode === 'percent' ? 10000 : i.mode === 'units' ? i.units : i.cents;
-export const fmtAlloc = (i: BillItem, n: number) => i.mode === 'amount' ? money(n) : i.mode === 'percent' ? `${n / 100}%` : `${n} ${n === 1 ? 'unit' : 'units'}`;
-export const itemRemaining = (i: BillItem) => Math.max(0, itemTarget(i) - i.allocations.reduce((s, a) => s + Math.max(0, a.value), 0));
-export const methodText = (i: BillItem) => i.mode === 'amount' ? 'By $' : i.mode === 'percent' ? 'By %' : i.mode === 'units' ? `By units · ${i.units}` : 'Not set';
+export const billReady = (bill: BillView) => bill.receiptConfirmed && bill.splitMode === 'itemized' && bill.receipt.items.length > 0 && bill.receipt.items.every(i => i.mode === 'equal');

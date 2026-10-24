@@ -3,7 +3,7 @@ import { CircleCheck, Plus, Clock3, LockKeyhole, RotateCcw, Utensils } from 'luc
 import type { BillView } from '@workspace/api-client-react';
 import { Avatar } from '@/components/Chrome';
 import type { Change } from '@/hooks/use-bill-actions';
-import { billReady, fmtAlloc, itemRemaining, money } from '@/lib/billo';
+import { billReady, money } from '@/lib/billo';
 
 export function GroupView({ bill, send, pending, onClose, onPay }: { bill: BillView; send: (c: Change, o?: { success?: string }) => void; pending: boolean; onClose: () => void; onPay: () => void }) {
   const isHost = bill.meId === bill.payerId, closed = bill.status === 'closed';
@@ -27,7 +27,7 @@ export function GroupView({ bill, send, pending, onClose, onPay }: { bill: BillV
       </div>)}
       {bill.participants.length === 1 && <p className="sp-small sp-muted" style={{ padding: '12px 0' }}>Nobody else has joined yet. Share the link from Invite.</p>}
     </div>
-    {unclaimed.length > 0 && !closed && <div className="sp-card sp-pad"><h3>Unclaimed shares</h3><div className="sp-unclaimed" style={{ marginTop: 8 }}>{unclaimed.map(i => <div key={i.id} className="sp-row sp-between"><span>{i.name}</span><span className="sp-money">{fmtAlloc(i, itemRemaining(i))}</span></div>)}</div></div>}
+    {unclaimed.length > 0 && !closed && <div className="sp-card sp-pad"><h3>Unselected items</h3><div className="sp-unclaimed" style={{ marginTop: 8 }}>{unclaimed.map(i => <div key={i.id} className="sp-row sp-between"><span>{i.name}</span><span className="sp-money">{money(i.cents)}</span></div>)}</div></div>}
     {isHost && !closed && <div className="sp-card sp-pad sp-stack" style={{ gap: 14 }}>
       <button className="sp-link" data-testid="button-reopen" disabled={pending || confirmed === 0} onClick={() => send({ action: 'reopen' }, { success: 'Confirmations cleared. Everyone will re-confirm.' })}><RotateCcw size={16} />Ask everyone to confirm again</button>
       <button className="sp-button full" data-testid="button-open-close" disabled={pending || !billReady(bill)} onClick={onClose}><LockKeyhole size={18} />Close bill</button>

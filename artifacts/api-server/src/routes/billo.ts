@@ -44,7 +44,7 @@ router.post("/billo/bills", createLimiter, async (req, res): Promise<void> => {
   requireThat(!zelle || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(zelle) || /^(?:1)?\d{10}$/.test(zelle.replace(/[+()\s.-]/g, "")), "Enter a valid Zelle email or US phone number.");
   const id = newId(), me = memberId();
   const state: BillState = {
-    id, title, payerId: me, status: "open", revision: 0, splitMode: "itemized", receiptConfirmed: false, venmo, zelle, scans: [],
+    id, title, payerId: me, status: "open", revision: 0, splitMode: "itemized", selectionVersion: 1, receiptConfirmed: false, venmo, zelle, scans: [],
     receipt: { title, items: [], taxCents: 0, tipMode: "percent", tipValue: 2000, totalCents: 0, adjustmentCents: 0, warnings: [] },
     participants: [{ id: me, name, finished: false, paid: false }],
   };

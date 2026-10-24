@@ -19,19 +19,19 @@ The user anticipates the great majority of usage on phones and wants this produc
 
 **Why:** Their feedback on the initial prototype was that it contained too much decorative text and needed simpler, cleaner mobile interactions.
 
-**How to apply:** Prioritize readable mobile text, generous touch targets, and easy numeric entry. Preserve useful short instructions, not long thematic headings. Item splits should support dollar, percentage, and unit allocations as well as equal shares; tip entry should support percentages.
+**How to apply:** Prioritize readable mobile text, generous touch targets, and easy item selection. Preserve useful short instructions, not long thematic headings. Tip entry should support percentages.
 
-The payer defines each item's dollar, percentage, or unit method and total units before inviting friends. Friends claim only their own portion, never configure totals or assign for others.
+Each person selects the items they ate; each item is split equally among its selectors. No item-level dollar, percentage, or unit workflows remain.
 
-**Why:** The user explicitly changed the workflow from collaborative allocation editing to payer setup followed by individual claims.
+**Why:** The user explicitly replaced payer-defined split methods with simple selection and approved converting positive claims on existing open bills to equal selections.
 
-**How to apply:** Treat this as superseding the earlier equal-share/group allocation editor requirement. Preserve partial claims while the group is still choosing.
+**How to apply:** This supersedes prior payer-defined dollar/percentage/unit requirements. Keep selections own-only, preserve closed bill amounts, and reset participant confirmations when converting open bills. Receipt and tip confirmation remains required.
 
 Joining and editing must remain stable while other people act; live updates must not interrupt name entry or require reopening an otherwise valid claim.
 
 **Why:** The user reported that flashing name entry prevented use on both mobile and desktop, and requested queued simultaneous edits instead of lockouts.
 
-**How to apply:** Keep unauthenticated join forms outside private-bill polling. Serialize valid claims against current capacity; distinguish real item/receipt changes from unrelated participant activity.
+**How to apply:** Keep unauthenticated join forms outside private-bill polling. Serialize own-item selections; distinguish real item/receipt changes from unrelated participant activity.
 
 The host wants to adjust the receipt amount directly and add tip without a fees/discounts reconciliation workflow.
 
@@ -43,4 +43,10 @@ Receipt and tip review is a required payer checkpoint before Items, Group, or In
 
 **Why:** The user explicitly requested no sharing or access to those screens until the payer fully confirms a scanned receipt and its tip.
 
-**How to apply:** Scanning is extraction, not confirmation. Keep the review flow gated across reloads; only the payer's explicit confirmation unlocks participation.
+**How to apply:** Scanning is extraction, not confirmation. Keep the review flow gated across reloads; only the payer's explicit confirmation unlocks participation. Hide all desktop/mobile bill tabs until confirmation rather than showing disabled tabs; do not show the removed "Confirm the receipt and tip to unlock…" notice.
+
+Keep the existing OCR provider and scanning implementation unchanged unless the user explicitly authorizes a future change.
+
+**Why:** After discussing alternative providers, the user said to stop changing OCR and keep it as is.
+
+**How to apply:** Do not bundle an OCR replacement with splitting or receipt UI work.

@@ -40,7 +40,7 @@ Mobile-first bill splitting for friends at the table, with receipt extraction an
 
 ## Product
 
-Receipt camera/upload/manual entry, equal and itemized splitting, dollar/percentage/unit sharing, link and QR invitations, payer finalization, Venmo handoff, Zelle copyable details, and self-reported payment tracking.
+Receipt camera/upload/manual entry, tap-to-select items shared equally among their selectors, link and QR invitations, payer receipt/tip confirmation and finalization, Venmo handoff, Zelle copyable details, and self-reported payment tracking.
 
 ## User preferences
 
@@ -50,7 +50,7 @@ See `.agents/memory/product-scope.md` for product intent and constraints.
 
 - Zelle runs inside participating banks; do not invent a universal prefilled Zelle app link.
 - Venmo custom-scheme behavior depends on device and app installation. Keep web and copy fallbacks, and never treat opening a link as a confirmed payment.
-- Bill writes are serialized by database row locks. Independent own-claim updates use current capacity rather than rejecting unrelated revisions. Receipt replacements guard against newer receipt edits only and preserve claims on unchanged items.
+- Bill writes are serialized by database row locks. Own-item selections do not reject unrelated revisions. Receipt replacements guard against newer receipt edits only and preserve selections on unchanged items. Open legacy bills are converted once under the row lock when read or changed; closed bills retain their original amounts.
 
 ## Pointers
 
