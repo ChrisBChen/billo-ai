@@ -85,7 +85,7 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
   ];
   const visibleNav = nav.filter(({ tab: t }) => isHost || t !== 'group');
   const titles: Record<Tab, [string, string]> = {
-    items: closed ? ['Your items', 'Amounts are locked.'] : ['Claim your share', ''],
+    items: closed ? ['Your items', isHost ? 'Amounts are locked.' : ''] : ['Claim your share', ''],
     receipt: editing ? ['Review receipt', 'Check every line before confirming.'] : isHost && !bill.receipt.items.length ? ['Add the receipt', ''] : isHost && !closed && !billReady(bill) ? ['Confirm the receipt', 'Review the items and tip.'] : ['Receipt', ''],
     share: ['Invite friends', ''],
     group: closed ? ['Summary & payments', ''] : ['Summary', ''],

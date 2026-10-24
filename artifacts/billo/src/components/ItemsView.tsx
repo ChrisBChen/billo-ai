@@ -32,7 +32,7 @@ export function ItemsView({ bill, send, pending, onBreakdown, onPrimary, onAddRe
 
   return <>
     {finished && !closed && <div className="sp-notice" style={{ marginBottom: 16 }} data-testid="status-waiting"><Clock3 size={17} />{bill.participants.every(p => p.finished) ? <>You confirmed. Waiting for {findPerson(bill, bill.payerId)?.name ?? 'the payer'}{isHost ? ' (you)' : ''} to close the bill.</> : 'You confirmed your items. Waiting for everyone to finish choosing.'}</div>}
-    {closed && <div className="sp-notice" style={{ marginBottom: 16 }}><LockKeyhole size={17} />This bill is closed. Amounts are final.</div>}
+    {closed && <div className="sp-notice" style={{ marginBottom: 16 }}><LockKeyhole size={17} />This bill is closed.{isHost && ' Amounts are final.'}</div>}
     <div className="sp-selection-grid">
       <div>
         <div className="sp-card">
@@ -47,7 +47,7 @@ export function ItemsView({ bill, send, pending, onBreakdown, onPrimary, onAddRe
               <div className="sp-item-meta"><span>{label(item)}</span></div>
             </div>; })}
         </div>
-        <p className="sp-list-note">{closed ? 'Amounts are final.' : 'Tap what you ate. Shared items split equally between everyone who selects them. Tax and tip follow your share.'}</p>
+        {(!closed || isHost) && <p className="sp-list-note">{closed ? 'Amounts are final.' : 'Tap what you ate. Shared items split equally between everyone who selects them. Tax and tip follow your share.'}</p>}
       </div>
       <aside className="sp-card sp-pad sp-summary">
         {showAmounts ? <>
