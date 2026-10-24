@@ -35,7 +35,7 @@ export default function CreateBill() {
     <OfflineBanner />
     <div className="sp-layout" style={{ display: 'block', maxWidth: 620 }}>
       <main className="sp-page">
-        <div className="sp-heading sp-hero-create"><span className="sp-context">No signup. Nobody downloads anything.</span><h1 style={{ marginTop: 8 }}>Start a bill</h1><p>You paid the table. Scan the receipt, share a link, and everyone picks what they had.</p></div>
+        <div className="sp-heading sp-hero-create"><h1 style={{ marginTop: 8 }}>Start a bill</h1></div>
         <form className="sp-card sp-pad sp-stack" onSubmit={submit} noValidate>
           <label className="sp-field">Your name<input data-testid="input-host-name" value={name} maxLength={40} autoComplete="given-name" onChange={e => setName(e.target.value)} placeholder="First name" />{tried && errors.name && <span className="sp-error-text">{errors.name}</span>}</label>
           <label className="sp-field">What is this bill?<input data-testid="input-title" value={title} maxLength={100} onChange={e => setTitle(e.target.value)} placeholder="Dinner at Lucia's" />{tried && errors.title && <span className="sp-error-text">{errors.title}</span>}</label>
