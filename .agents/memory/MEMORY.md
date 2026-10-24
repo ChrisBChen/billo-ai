@@ -1,0 +1,1 @@
+- [Bill-splitting product scope](product-scope.md) — At-table splitting, no-signup participation, payer included, and external payments.
