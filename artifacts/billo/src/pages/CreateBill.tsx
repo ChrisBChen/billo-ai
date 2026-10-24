@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Info, Users } from 'lucide-react';
+import { ArrowRight, Info } from 'lucide-react';
 import { getGetBillQueryKey, useCreateBill } from '@workspace/api-client-react';
 import { OfflineBanner, Spinner, Topbar } from '@/components/Chrome';
 import { errorMessage } from '@/lib/billo';
@@ -46,9 +46,6 @@ export default function CreateBill() {
           {create.isError && <div className="sp-notice warning" role="alert"><Info size={17} />{errorMessage(create.error, 'The bill could not be created. Try again.')}</div>}
           <button type="submit" data-testid="button-create-bill" className="sp-button full" disabled={create.isPending}>{create.isPending ? <><Spinner />Creating</> : <>Continue<ArrowRight size={18} /></>}</button>
         </form>
-        <div className="sp-stack" style={{ gap: 14, marginTop: 28 }}>
-          {[{ icon: Users, t: 'Friends tap what they had', d: 'Share items equally, by dollars, percent, or units.' }].map(({ icon: Icon, t, d }) => <div key={t} className="sp-row" style={{ alignItems: 'flex-start' }}><Icon size={22} color="var(--sp-accent)" /><div><h3>{t}</h3><p className="sp-small sp-muted">{d}</p></div></div>)}
-        </div>
       </main>
     </div>
   </div>;
