@@ -37,6 +37,7 @@ export function itemShares(item: BillItem): Record<string, number> {
   if (!allocs.length) return out;
   const amounts = item.mode === 'amount' ? allocs.map(a => a.value)
     : item.mode === 'equal' ? distribute(item.cents, allocs.map(() => 1))
+    : item.mode === 'percent' ? distribute(item.cents, [...allocs.map(a => a.value), Math.max(0, 10000 - allocs.reduce((sum, a) => sum + a.value, 0))])
     : distribute(item.cents, allocs.map(a => a.value));
   allocs.forEach((a, i) => { out[a.participantId] = amounts[i]; });
   return out;

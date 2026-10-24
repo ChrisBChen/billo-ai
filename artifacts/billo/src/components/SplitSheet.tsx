@@ -28,9 +28,10 @@ export function SplitSheet({ bill, item, send, pending, onClose }: { bill: BillV
   const target = mode === 'percent' ? 10000 : mode === 'units' ? unitsN : item.cents;
   const sum = nums.reduce<number>((a, b) => a + (b ?? 0), 0);
   const remaining = target - sum;
-  const valid = mode === 'equal' ? checked.some(Boolean) : inputsValid && remaining === 0 && sum > 0 && (mode !== 'units' || unitsValid);
+  const valid = mode === 'equal' ? checked.some(Boolean) : inputsValid && (mode === 'percent' ? remaining >= 0 : remaining === 0 && sum > 0) && (mode !== 'units' || unitsValid);
   const preview = mode === 'equal' ? distribute(item.cents, checked.map(Number))
     : mode === 'amount' ? nums.map(n => n ?? 0)
+    : mode === 'percent' && valid ? distribute(item.cents, [...nums.map(n => n ?? 0), remaining]).slice(0, people.length)
     : valid ? distribute(item.cents, nums.map(n => n ?? 0))
     : nums.map(n => target > 0 ? Math.round(item.cents * (n ?? 0) / target) : 0);
 
@@ -75,6 +76,7 @@ export function SplitSheet({ bill, item, send, pending, onClose }: { bill: BillV
       {valid ? <Check size={18} /> : <AlertTriangle size={18} />}
       <div>{!inputsValid ? <strong>{mode === 'units' ? 'Use whole numbers' : 'Use numbers with up to two decimals'}</strong>
         : mode === 'units' && !unitsValid ? <strong>Set the unit count between 1 and 10,000</strong>
+        : valid && remaining > 0 ? <><strong>{fmt(remaining)} left for others</strong><small>You can save your share now. The remainder must be assigned before closing.</small></>
         : valid ? <strong>Fully allocated</strong>
         : <><strong>{remaining > 0 ? `${fmt(remaining)} left to assign` : `${fmt(-remaining)} over`}</strong><small>Must total {fmt(target)}{unit && ''}</small></>}</div>
     </div>}

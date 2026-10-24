@@ -62,7 +62,8 @@ export function calculate(s: BillState): Participant[] {
   let items = new Array<number>(n).fill(0);
   for (const item of s.receipt.items) {
     const weights = s.participants.map(p => item.allocations.find(a => a.participantId === p.id)?.value ?? 0);
-    const amounts = item.mode === "amount" ? weights : distribute(item.cents, weights);
+    const amounts = item.mode === "amount" ? weights : distribute(item.cents,
+      item.mode === "percent" ? [...weights, Math.max(0, 10000 - weights.reduce((a, b) => a + b, 0))] : weights).slice(0, n);
     amounts.forEach((amount, i) => { items[i]! += amount; });
   }
   // Include unclaimed subtotal in proportional calculations to avoid shifting
@@ -79,7 +80,9 @@ export function calculate(s: BillState): Participant[] {
   }));
 }
 export function unclaimedItems(s: BillState) {
-  return s.splitMode === "equal" ? [] : s.receipt.items.filter(i => !i.allocations.some(a => a.value > 0));
+  return s.splitMode === "equal" ? [] : s.receipt.items.filter(i => i.mode === "percent"
+    ? i.allocations.reduce((sum, a) => sum + a.value, 0) < 10000
+    : !i.allocations.some(a => a.value > 0));
 }
 export function view(s: BillState, meId: string): BillView {
   const participants = (s.finalParticipants ?? calculate(s)).map(p => ({ ...p, paid: s.participants.find(m => m.id === p.id)!.paid }));
@@ -102,9 +105,9 @@ function validAllocations(item: BillItem, s: BillState) {
   requireThat(new Set(ids).size === ids.length && ids.every(id => s.participants.some(p => p.id === id)), "Choose valid participants once each.");
   requireThat(item.allocations.length <= 30, "Too many allocations.");
   const sum = item.allocations.reduce((t, a) => t + a.value, 0);
-  requireThat(sum > 0 || (item.mode === "amount" && item.cents === 0), "Assign at least one share.");
+  requireThat(sum > 0 || item.mode === "percent" || (item.mode === "amount" && item.cents === 0), "Assign at least one share.");
   if (item.mode === "amount") requireThat(sum === item.cents, "Dollar shares must match the item price.");
-  if (item.mode === "percent") requireThat(sum === 10000, "Percent shares must total 100%.");
+  if (item.mode === "percent") requireThat(sum <= 10000, "Percent shares cannot exceed 100%.");
   if (item.mode === "units") requireThat(sum === item.units, "Assigned units must match total units.");
   if (item.mode === "equal") requireThat(item.allocations.every(a => a.value === 0 || a.value === 1), "Equal shares must be zero or one.");
 }
@@ -157,7 +160,16 @@ export function change(s: BillState, meId: string, input: BillChange) {
         requireThat(input.force || s.participants.filter(p => p.id !== s.payerId).every(p => p.finished), "Some participants are still selecting. Use Force finish to close early.");
         const remaining = unclaimedItems(s);
         requireThat(!remaining.length || input.takeRemaining, "Resolve unclaimed items, or explicitly take remaining items.");
-        remaining.forEach(i => { i.mode = "equal"; i.allocations = [{ participantId: s.payerId, value: 1 }]; });
+        remaining.forEach(i => {
+          if (i.mode === "percent") {
+            const rest = 10000 - i.allocations.reduce((sum, a) => sum + a.value, 0);
+            const payer = i.allocations.find(a => a.participantId === s.payerId);
+            if (payer) payer.value += rest;
+            else i.allocations.push({ participantId: s.payerId, value: rest });
+          } else {
+            i.mode = "equal"; i.allocations = [{ participantId: s.payerId, value: 1 }];
+          }
+        });
         const amounts = calculate(s);
         requireThat(amounts.every(p => p.totalCents >= 0), "Adjustments would make a participant's share negative. Correct the receipt.");
         requireThat(amounts.reduce((t, p) => t + p.totalCents, 0) === s.receipt.totalCents, "Shares do not reconcile with the bill total.");

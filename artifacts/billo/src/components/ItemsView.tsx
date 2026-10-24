@@ -15,7 +15,10 @@ export function ItemsView({ bill, send, pending, onSplit, onBreakdown, onPrimary
     const own = isClaimedBy(item, bill.meId), mine = itemShares(item)[bill.meId] ?? 0;
     const myAlloc = item.allocations.find(a => a.participantId === bill.meId)?.value ?? 0;
     if (item.mode === 'units') return own ? `You: ${myAlloc} of ${item.units} units · ${money(mine)}` : `${item.units} units allocated`;
-    if (item.mode === 'percent') return own ? `You: ${myAlloc / 100}% · ${money(mine)}` : 'Split by percent';
+    if (item.mode === 'percent') {
+      const remaining = 10000 - allocs.reduce((sum, a) => sum + a.value, 0);
+      return (own ? `You: ${myAlloc / 100}% · ${money(mine)}` : 'Split by percent') + (remaining > 0 ? ` · ${remaining / 100}% unclaimed` : '');
+    }
     if (item.mode === 'amount') return own ? `You: ${money(mine)}` : 'Split by amount';
     if (allocs.length > 1) return `${allocs.length} people${own ? ` · You ${money(mine)}` : ' · Equal'}`;
     return own ? 'Yours' : findPerson(bill, allocs[0].participantId)?.name ?? 'Claimed';

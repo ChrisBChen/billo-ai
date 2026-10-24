@@ -19,7 +19,7 @@ export function CloseSheet({ bill, send, pending, onClose }: { bill: BillView; s
       {mismatch && <div className="sp-notice warning"><AlertTriangle size={17} />The receipt total does not match its items, tax, and tip. Fix the receipt first.</div>}
       {waiting.length === 0 && unclaimed.length === 0 && !mismatch && <div className="sp-notice">Everyone confirmed and every item is claimed.</div>}
       {waiting.length > 0 && <label className="sp-check-row"><input type="checkbox" data-testid="checkbox-force" checked={force} onChange={e => setForce(e.target.checked)} /><span>Close without waiting<small>{waiting.map(p => p.name).join(', ')} {waiting.length === 1 ? 'has' : 'have'} not confirmed. Their current choices become final.</small></span></label>}
-      {unclaimed.length > 0 && <label className="sp-check-row"><input type="checkbox" data-testid="checkbox-take-remaining" checked={take} onChange={e => setTake(e.target.checked)} /><span>I will cover the unclaimed items<small>{unclaimed.map(i => `${i.name} (${money(i.cents)})`).join(', ')} go to you, with their tax and tip.</small></span></label>}
+      {unclaimed.length > 0 && <label className="sp-check-row"><input type="checkbox" data-testid="checkbox-take-remaining" checked={take} onChange={e => setTake(e.target.checked)} /><span>I will cover the unclaimed items and shares<small>{unclaimed.map(i => i.mode === 'percent' ? `${i.name} (${(10000 - i.allocations.reduce((sum, a) => sum + a.value, 0)) / 100}% remaining)` : `${i.name} (${money(i.cents)})`).join(', ')} go to you, with their tax and tip. Existing shares stay unchanged.</small></span></label>}
     </div>
   </Sheet>;
 }

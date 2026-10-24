@@ -71,7 +71,7 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
     { tab: 'group', label: 'Group', icon: Users },
   ];
   const titles: Record<Tab, [string, string]> = {
-    items: closed ? ['Your items', 'Amounts are locked.'] : bill.splitMode === 'equal' ? ['Even split', 'Everyone pays the same share.'] : ['Choose your items', 'Tap your items. Split anything shared.'],
+    items: closed ? ['Your items', 'Amounts are locked.'] : bill.splitMode === 'equal' ? ['Even split', 'Everyone pays the same share.'] : ['Choose your items', ''],
     receipt: editing ? ['Review receipt', 'Check every line before saving.'] : isHost && !bill.receipt.items.length ? ['Add the receipt', 'Scan it or type it in.'] : ['Receipt', ''],
     share: ['Invite friends', 'Everyone at the table joins with this link.'],
     group: closed ? ['Group & payments', 'Who has reported paying.'] : ['Group', 'Who is in and who is done.'],
