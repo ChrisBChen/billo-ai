@@ -88,7 +88,7 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
     items: closed ? ['Your items', 'Amounts are locked.'] : ['Claim your share', ''],
     receipt: editing ? ['Review receipt', 'Check every line before confirming.'] : isHost && !bill.receipt.items.length ? ['Add the receipt', ''] : isHost && !closed && !billReady(bill) ? ['Confirm the receipt', 'Review the items and tip.'] : ['Receipt', ''],
     share: ['Invite friends', ''],
-    group: closed ? ['Summary & payments', 'Who has reported paying.'] : ['Summary', ''],
+    group: closed ? ['Summary & payments', ''] : ['Summary', ''],
   };
 
   if (!isHost && reviewRequired) return <>
