@@ -7,13 +7,13 @@ The product helps friends split a bill live while still sitting at the table, ra
 
 **Why:** This is the core problem stated in the user's idea; it distinguishes the app from ongoing expense tracking.
 
-**How to apply:** Prioritize fast joining and shared-item selection. Show receipt item prices while choosing, but defer personal split amounts until the group finishes. The payer participates in the split too.
+**How to apply:** Prioritize fast joining and shared-item selection. Show receipt item prices while choosing, but hide friends' split amounts until the payer closes the bill. The payer participates in the split too.
 
-Both payers and friends should have regular login rather than Google-only sign-in. Payments occur outside the app using the payer's Venmo or Zelle details.
+Both payers and friends use the name-only, no-login flow. Payments occur outside the app using the payer's Venmo or Zelle details.
 
-**Why:** The user requested login for both roles, then replaced the Google-only request with regular login. External payments remain part of the original scope.
+**Why:** After trying email/password, the user explicitly and repeatedly requested removing login and restoring the pre-login experience. This supersedes all earlier Google and email/password requests. External payments remain part of the original scope.
 
-**How to apply:** Do not reintroduce Google-only login. Preserve the invited bill through login, and do not introduce in-app money movement. Finishing selections must not imply verified payment.
+**How to apply:** Do not reintroduce account or login requirements without a new explicit request. Use private per-bill browser sessions, not matching display names, to establish ownership. Preserve existing bill access when changing authentication. Do not introduce in-app money movement. Finishing selections must not imply verified payment.
 
 The user anticipates the great majority of usage on phones and wants this product to take cues from Google or Apple native applications, with only essential explanatory copy.
 
@@ -37,7 +37,7 @@ Confirmation means approval of one's selected items, not a changing provisional 
 
 **Why:** The user found repeated reconfirmation and changing personal amounts disruptive and explicitly requested selection-only screens until everyone confirms.
 
-**How to apply:** Only one's own selection edits clear one's own confirmation. While people are choosing, show original item prices and nonmonetary selection labels, not personal totals, per-item shares, Group amounts, or breakdowns. Reveal split amounts after everyone confirms and unselected items are resolved; closing still locks final amounts. Explicit receipt changes or the payer asking everyone to reconfirm remain distinct actions.
+**How to apply:** Only one's own selection edits clear one's own confirmation. Friends see original item prices and nonmonetary selection labels, not personal totals, per-item dollar shares, or breakdowns until the payer closes the bill—even if everyone has confirmed. The payer alone sees Summary and running allocated, confirmed, pending, and unallocated totals while the bill remains open. Explicit receipt changes or the payer asking everyone to reconfirm remain distinct actions.
 
 The host wants to adjust the receipt amount directly and add tip without a fees/discounts reconciliation workflow.
 

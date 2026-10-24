@@ -26,6 +26,5 @@ export function ShareView({ bill, notify, onSetup }: { bill: BillView; notify: (
     </div>
     <div className="sp-link-box"><Link2 size={19} /><span className="sp-grow sp-small" data-testid="text-share-url" style={{ userSelect: 'all' }}>{url}</span><button className="sp-icon" data-testid="button-copy-link" aria-label="Copy bill link" onClick={copy}><Copy size={19} /></button></div>
     <button className="sp-button full" data-testid="button-share" onClick={share}><Share2 size={18} />Share link</button>
-    <p className="sp-small sp-muted">Anyone with this link can join by name and choose items.</p>
   </div>;
 }

@@ -3,7 +3,7 @@ import type { BillChange, BillItem, BillView, ReceiptDraft, Participant } from "
 export class BillError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
-export type Member = { id: string; name: string; finished: boolean; paid: boolean };
+export type Member = { id: string; name: string; userId?: string; finished: boolean; paid: boolean };
 export type BillState = {
   id: string; title: string; payerId: string; status: "open" | "closed";
   revision: number; splitMode: "equal" | "itemized"; receipt: ReceiptDraft;

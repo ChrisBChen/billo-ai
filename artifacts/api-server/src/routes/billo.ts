@@ -5,8 +5,12 @@ import { CreateBillBody, JoinBillBody, ChangeBillBody, ScanReceiptBody, GetBillR
 import { BillError, type BillState, view, change, requireThat, invalidate, setupReady } from "../lib/billo-domain";
 import { newId, memberId, findBill, identify, session, addSession, mutate, resolveShareCode } from "../lib/billo-store";
 import { extractReceipt } from "../lib/billo-ocr";
+import { loadLegacyAccount } from "../lib/billo-legacy-session";
 
 const router: IRouter = Router();
+// Optional compatibility only: exchange an existing account session for a bill
+// cookie. No account, signup, or login is required for creating or joining bills.
+router.use("/billo", loadLegacyAccount);
 router.use("/billo", (_req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
 router.use("/billo", (req, res, next) => {
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {

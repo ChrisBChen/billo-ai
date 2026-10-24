@@ -27,7 +27,7 @@ export function ItemsView({ bill, send, pending, onBreakdown, onPrimary, onAddRe
   function tap(item: BillItem) {
     if (!locked && !pending && ready) send({ action: 'claim', itemId: item.id, claimed: !isClaimedBy(item, bill.meId) });
   }
-  const primaryLabel = closed ? (isHost ? 'Group' : 'Pay') : finished ? 'Edit choices' : 'Confirm';
+  const primaryLabel = closed ? (isHost ? 'Summary' : 'Pay') : finished ? 'Edit choices' : 'Confirm';
   const lines = me ? <><div><span>Items</span><span className="sp-money">{money(me.itemCents)}</span></div><div><span>Tax</span><span className="sp-money">{money(me.taxCents)}</span></div><div><span>Tip{bill.receipt.tipMode === 'percent' ? ` (${bill.receipt.tipValue / 100}%)` : ''}</span><span className="sp-money">{money(me.tipCents)}</span></div>{me.adjustmentCents !== 0 && <div><span>Total adjustment</span><span className="sp-money">{money(me.adjustmentCents)}</span></div>}</> : null;
 
   return <>
@@ -51,12 +51,12 @@ export function ItemsView({ bill, send, pending, onBreakdown, onPrimary, onAddRe
       </div>
       <aside className="sp-card sp-pad sp-summary">
         {showAmounts ? <>
-          <span className="sp-small sp-muted">{closed ? 'Your final share' : 'Your share · everyone confirmed'}</span><div className="sp-big-amount sp-money" data-testid="text-my-total">{money(me?.totalCents ?? 0)}</div>
+          <span className="sp-small sp-muted">{closed ? 'Your final share' : 'Your share · estimate'}</span><div className="sp-big-amount sp-money" data-testid="text-my-total">{money(me?.totalCents ?? 0)}</div>
           <div className="sp-summary-lines">{lines}</div>
         </> : <div className="sp-stack" data-testid="status-selection-only">
           <span className="sp-small sp-muted">Your selections</span>
           <h2>{selectedCount} {selectedCount === 1 ? 'item' : 'items'} selected</h2>
-          <p className="sp-small sp-muted">{bill.participants.every(p => p.finished) && bill.unclaimedItemIds.length ? 'The payer needs to resolve unselected items before amounts are ready.' : 'Your amount appears once everyone confirms their items.'}</p>
+          <p className="sp-small sp-muted">Your amount appears after the payer closes the bill.</p>
         </div>}
         <button className={`sp-button full ${finished && !closed ? 'secondary' : ''}`} data-testid="button-primary" disabled={(!ready && !closed) || pending} onClick={onPrimary}>{finished && !closed ? <Pencil size={17} /> : null}{primaryLabel}{!finished && !closed && <Check size={18} />}</button>
         <p className="sp-footer-note">No payment is made here.</p>

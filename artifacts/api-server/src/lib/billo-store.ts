@@ -27,9 +27,22 @@ export async function resolveShareCode(code: string): Promise<BillState> {
 }
 export async function identify(req: Request, id: string): Promise<string | null> {
   const token = req.cookies?.[cookieName(id)];
-  if (typeof token !== "string" || token.length > 100) return null;
-  const result = await pool.query("SELECT participant_id FROM billo_sessions WHERE token_hash=$1 AND bill_id=$2 AND expires_at>now()", [hash(token), id]);
-  return result.rows[0]?.participant_id ?? null;
+  if (typeof token === "string" && token.length <= 100) {
+    const result = await pool.query("SELECT participant_id FROM billo_sessions WHERE token_hash=$1 AND bill_id=$2 AND expires_at>now()", [hash(token), id]);
+    const me: string | undefined = result.rows[0]?.participant_id;
+    if (me && (await findBill(id)).participants.some(p => p.id === me)) return me;
+  }
+  // Preserve seats opened on another browser during the login experiment.
+  // A genuine old account session is proof; matching a display name is not.
+  if (req.billoAccount) {
+    const state = await findBill(id);
+    const linked = state.participants.find(p => p.userId === req.billoAccount!.id);
+    if (linked) {
+      if (req.res) await addSession(id, linked.id, req.res);
+      return linked.id;
+    }
+  }
+  return null;
 }
 export async function session(req: Request, id: string): Promise<string> {
   const me = await identify(req, id);

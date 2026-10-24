@@ -1,3 +1,7 @@
+.sp-account-menu { position: relative; }
+.sp-account-menu summary { list-style: none; cursor: pointer; }
+.sp-account-menu summary::-webkit-details-marker { display: none; }
+.sp-account-panel { position: absolute; top: calc(100% + 10px); right: 0; width: 240px; z-index: 100; box-shadow: 0 12px 30px #0002; overflow-wrap: anywhere; }
 .split-v2 {
   font-family: 'Bricolage Grotesque', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-optical-sizing: auto;
@@ -270,8 +274,10 @@
 .sp-copy-line { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--sp-surface); border: 1px solid var(--sp-line); border-radius: 10px; font-size: 14px; overflow-wrap: anywhere; }
 .sp-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .sp-actions > .sp-button { flex: 1; min-width: 140px; }
-.sp-spin { animation: sp-rot 1s linear infinite; }
+.sp-spin { display: inline-block; flex-shrink: 0; transform-origin: center; animation: sp-rot 1s linear infinite; }
 @keyframes sp-rot { to { transform: rotate(360deg); } }
+/* Keep small, essential loading feedback active without restoring page motion. */
+@media(prefers-reduced-motion:reduce) { .split-v2 .sp-spin { animation: sp-rot 1.8s linear infinite!important; } }
 .sp-hero-create { padding: 6px 0 4px; }
 /* ===== Theme: ivory paper / ink / lavender / mint / orange ===== */
 :root, :root[data-theme=light] {

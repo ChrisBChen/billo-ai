@@ -10,6 +10,7 @@ import { ReceiptEditor } from '@/components/ReceiptEditor';
 import { ReceiptView } from '@/components/ReceiptView';
 import { ShareView } from '@/components/ShareView';
 import { GroupView } from '@/components/GroupView';
+import { PayerTotals } from '@/components/PayerTotals';
 import { CloseSheet } from '@/components/CloseSheet';
 import { PaymentSheet } from '@/components/PaymentSheet';
 import { Sheet } from '@/components/Sheet';
@@ -58,7 +59,7 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
   const [modal, setModal] = useState<Modal>(null);
   const [editing, setEditing] = useState<{ draft: ReceiptDraft; source: string } | null>(null);
   const reviewRequired = !closed && (!bill.receiptConfirmed || !!editing);
-  const tab: Tab = reviewRequired ? 'receipt' : selectedTab;
+  const tab: Tab = reviewRequired ? 'receipt' : !isHost && selectedTab === 'group' ? 'items' : selectedTab;
   const { send, pending } = useBillActions(bill, notify);
   const shown = useRef(false);
   useEffect(() => {
@@ -78,16 +79,17 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
     send({ action: 'finish', finished: !me?.finished }, { success: me?.finished ? 'You can change your items again' : 'Confirmed. We will let you know when it closes.' });
   }
   const nav: { tab: Tab; label: string; icon: LucideIcon }[] = [
-    { tab: 'items', label: 'My items', icon: Utensils },
+    { tab: 'group', label: 'Summary', icon: Users },
     { tab: 'receipt', label: 'Receipt', icon: ReceiptText },
+    { tab: 'items', label: 'My items', icon: Utensils },
     { tab: 'share', label: 'Invite friends', icon: Share2 },
-    { tab: 'group', label: 'Group', icon: Users },
   ];
+  const visibleNav = nav.filter(({ tab: t }) => isHost || t !== 'group');
   const titles: Record<Tab, [string, string]> = {
     items: closed ? ['Your items', 'Amounts are locked.'] : ['Claim your share', ''],
     receipt: editing ? ['Review receipt', 'Check every line before confirming.'] : isHost && !bill.receipt.items.length ? ['Add the receipt', ''] : isHost && !closed && !billReady(bill) ? ['Confirm the receipt', 'Review the items and tip.'] : ['Receipt', ''],
     share: ['Invite friends', ''],
-    group: closed ? ['Group & payments', 'Who has reported paying.'] : ['Group', ''],
+    group: closed ? ['Summary & payments', 'Who has reported paying.'] : ['Summary', ''],
   };
 
   if (!isHost && reviewRequired) return <>
@@ -104,21 +106,22 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
     <div className="sp-layout">
       <aside className="sp-rail">
         <div className="sp-restaurant"><Utensils size={25} /><div><h3>{bill.title}</h3></div></div>
-        {!reviewRequired && <nav aria-label="Bill navigation">{nav.map(({ tab: t, label, icon: Icon }) => <button key={t} data-testid={`nav-${t}`} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}><Icon size={18} />{label}</button>)}</nav>}
+        {!reviewRequired && <nav aria-label="Bill navigation">{visibleNav.map(({ tab: t, label, icon: Icon }) => <button key={t} data-testid={`nav-${t}`} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}><Icon size={18} />{label}</button>)}</nav>}
       </aside>
       <main className="sp-main">
         <div key={tab} className={`sp-page ${tab === 'items' ? 'sp-select-page' : ''}`}>
           <div className="sp-heading">
             <h1>{titles[tab][0]}</h1>{titles[tab][1] && <p>{titles[tab][1]}</p>}
           </div>
-          {!reviewRequired && <nav className="sp-mobile-tabs" aria-label="Bill navigation">{(['items', 'receipt', 'share', 'group'] as Tab[]).map((t, i) => <button key={t} data-testid={`tab-${t}`} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}>{['Items', 'Receipt', 'Invite', 'Group'][i]}</button>)}</nav>}
+          {!reviewRequired && <nav className="sp-mobile-tabs" aria-label="Bill navigation">{visibleNav.map(({ tab: t, label }) => <button key={t} data-testid={`tab-${t}`} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}>{label}</button>)}</nav>}
+          {isHost && !reviewRequired && <PayerTotals bill={bill} />}
           {tab === 'items' && <ItemsView bill={bill} send={send} pending={pending} onBreakdown={() => setModal('breakdown')} onPrimary={primary} onAddReceipt={() => go('receipt')} />}
           {tab === 'receipt' && (editing
             ? <ReceiptEditor key={editing.source + editing.draft.items.length} bill={bill} draft={editing.draft} source={editing.source} send={send} pending={pending} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); go('share'); }} />
             : isHost && !closed && !bill.receipt.items.length ? <ReceiptEntry bill={bill} onDraft={(draft, source) => setEditing({ draft, source })} />
             : <ReceiptView bill={bill} canEdit={isHost && !closed} onEdit={() => setEditing({ draft: bill.receipt, source: 'Saved receipt' })} />)}
           {tab === 'share' && <ShareView bill={bill} notify={notify} onSetup={() => go('receipt')} />}
-          {tab === 'group' && <GroupView bill={bill} send={send} pending={pending} onClose={() => setModal('close')} onPay={() => setModal('payment')} />}
+          {tab === 'group' && isHost && <GroupView bill={bill} send={send} pending={pending} onClose={() => setModal('close')} />}
         </div>
       </main>
     </div>
