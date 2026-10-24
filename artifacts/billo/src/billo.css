@@ -356,7 +356,7 @@ html, body { background: var(--sp-bg); }
 .sp-payment-overview small { color: #2c4a3f; }
 .sp-payment-overview.confirmation-pending { background: var(--sp-warn-bg); color: var(--sp-warn); }
 .sp-payment-overview.confirmation-pending small { color: var(--sp-warn); }
-:root[data-theme=dark] .sp-confirmation-overview.confirmation-pending { background: rgb(234 179 8 / 24%); color: #e8c45a; }
+:root[data-theme=dark] .sp-confirmation-overview.confirmation-pending { background: color-mix(in srgb, var(--sp-orange) 24%, transparent); color: var(--sp-orange); }
 :root[data-theme=dark] .sp-confirmation-overview.confirmation-pending small { color: inherit; }
 :root[data-theme=dark] .sp-confirmation-overview:not(.confirmation-pending) { background: var(--sp-success-bg); color: var(--sp-success); }
 :root[data-theme=dark] .sp-confirmation-overview:not(.confirmation-pending) small { color: inherit; }

@@ -39,11 +39,11 @@ The Summary box's green state means everyone has confirmed, not that the bill is
 
 **Why:** The user explicitly wants green even when unclaimed items remain. Keep unclaimed counts and close-bill eligibility separate from confirmation color.
 
-The dark-mode pending box should use a translucent golden-yellow/amber tint, not solid burnt orange or brown.
+The dark-mode pending box should use a translucent tint of the active sidebar tab's orange accent.
 
-**Why:** After finding dark orange too brown and stronger orange too solid/creamy, the user requested a yellower, more translucent treatment.
+**Why:** The user rejected brown, solid/creamy orange, and overly yellow treatments, then identified the active tab accent as the desired color reference.
 
-**How to apply:** Keep the background translucent and text golden rather than cream, with sufficient contrast. This supersedes the earlier burnt-orange direction.
+**How to apply:** Reuse the tab's orange color rather than inventing another hue; keep the background translucent and text readable. This supersedes the earlier burnt-orange and golden-yellow directions.
 
 **Why:** The user found repeated reconfirmation and changing personal amounts disruptive, then explicitly required both payer and friend My items views to withhold personal dollar shares until the payer closes the bill.
 
