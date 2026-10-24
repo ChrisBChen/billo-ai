@@ -63,7 +63,7 @@ export const CreateBillResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['open', 'closed']),
-  "revision": zod.number().int(),
+  "revision": zod.int(),
   "meId": zod.string(),
   "payerId": zod.string(),
   "splitMode": zod.enum(['equal', 'itemized']),
@@ -72,19 +72,19 @@ export const CreateBillResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string().min(1).max(createBillResponseReceiptItemsItemNameMax),
-  "cents": zod.number().int().min(createBillResponseReceiptItemsItemCentsMin).max(createBillResponseReceiptItemsItemCentsMax),
+  "cents": zod.int().min(createBillResponseReceiptItemsItemCentsMin).max(createBillResponseReceiptItemsItemCentsMax),
   "mode": zod.enum(['equal', 'amount', 'percent', 'units']),
-  "units": zod.number().int().min(1).max(createBillResponseReceiptItemsItemUnitsMax),
+  "units": zod.int().min(1).max(createBillResponseReceiptItemsItemUnitsMax),
   "allocations": zod.array(zod.object({
   "participantId": zod.string(),
-  "value": zod.number().int().min(createBillResponseReceiptItemsItemAllocationsItemValueMin).max(createBillResponseReceiptItemsItemAllocationsItemValueMax)
+  "value": zod.int().min(createBillResponseReceiptItemsItemAllocationsItemValueMin).max(createBillResponseReceiptItemsItemAllocationsItemValueMax)
 })).max(createBillResponseReceiptItemsItemAllocationsMax)
 })).max(createBillResponseReceiptItemsMax),
-  "taxCents": zod.number().int().min(createBillResponseReceiptTaxCentsMin).max(createBillResponseReceiptTaxCentsMax),
+  "taxCents": zod.int().min(createBillResponseReceiptTaxCentsMin).max(createBillResponseReceiptTaxCentsMax),
   "tipMode": zod.enum(['amount', 'percent']),
-  "tipValue": zod.number().int().min(createBillResponseReceiptTipValueMin).max(createBillResponseReceiptTipValueMax).describe('Cents for amount; basis points for percent (2000 = 20%).'),
-  "adjustmentCents": zod.number().int().min(createBillResponseReceiptAdjustmentCentsMin).max(createBillResponseReceiptAdjustmentCentsMax),
-  "totalCents": zod.number().int().min(createBillResponseReceiptTotalCentsMin).max(createBillResponseReceiptTotalCentsMax),
+  "tipValue": zod.int().min(createBillResponseReceiptTipValueMin).max(createBillResponseReceiptTipValueMax).describe('Cents for amount; basis points for percent (2000 = 20%).'),
+  "adjustmentCents": zod.int().min(createBillResponseReceiptAdjustmentCentsMin).max(createBillResponseReceiptAdjustmentCentsMax),
+  "totalCents": zod.int().min(createBillResponseReceiptTotalCentsMin).max(createBillResponseReceiptTotalCentsMax),
   "warnings": zod.array(zod.string())
 }),
   "participants": zod.array(zod.object({
@@ -93,11 +93,11 @@ export const CreateBillResponse = zod.object({
   "isPayer": zod.boolean(),
   "finished": zod.boolean(),
   "paid": zod.boolean(),
-  "itemCents": zod.number().int(),
-  "taxCents": zod.number().int(),
-  "tipCents": zod.number().int(),
-  "adjustmentCents": zod.number().int(),
-  "totalCents": zod.number().int()
+  "itemCents": zod.int(),
+  "taxCents": zod.int(),
+  "tipCents": zod.int(),
+  "adjustmentCents": zod.int(),
+  "totalCents": zod.int()
 })),
   "unclaimedItemIds": zod.array(zod.string()),
   "venmo": zod.string(),
@@ -105,7 +105,7 @@ export const CreateBillResponse = zod.object({
   "venmoUrl": zod.string(),
   "venmoWebUrl": zod.string(),
   "paymentNote": zod.string(),
-  "outstandingCents": zod.number().int()
+  "outstandingCents": zod.int()
 })
 
 
@@ -165,7 +165,7 @@ export const JoinBillResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['open', 'closed']),
-  "revision": zod.number().int(),
+  "revision": zod.int(),
   "meId": zod.string(),
   "payerId": zod.string(),
   "splitMode": zod.enum(['equal', 'itemized']),
@@ -174,19 +174,19 @@ export const JoinBillResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string().min(1).max(joinBillResponseReceiptItemsItemNameMax),
-  "cents": zod.number().int().min(joinBillResponseReceiptItemsItemCentsMin).max(joinBillResponseReceiptItemsItemCentsMax),
+  "cents": zod.int().min(joinBillResponseReceiptItemsItemCentsMin).max(joinBillResponseReceiptItemsItemCentsMax),
   "mode": zod.enum(['equal', 'amount', 'percent', 'units']),
-  "units": zod.number().int().min(1).max(joinBillResponseReceiptItemsItemUnitsMax),
+  "units": zod.int().min(1).max(joinBillResponseReceiptItemsItemUnitsMax),
   "allocations": zod.array(zod.object({
   "participantId": zod.string(),
-  "value": zod.number().int().min(joinBillResponseReceiptItemsItemAllocationsItemValueMin).max(joinBillResponseReceiptItemsItemAllocationsItemValueMax)
+  "value": zod.int().min(joinBillResponseReceiptItemsItemAllocationsItemValueMin).max(joinBillResponseReceiptItemsItemAllocationsItemValueMax)
 })).max(joinBillResponseReceiptItemsItemAllocationsMax)
 })).max(joinBillResponseReceiptItemsMax),
-  "taxCents": zod.number().int().min(joinBillResponseReceiptTaxCentsMin).max(joinBillResponseReceiptTaxCentsMax),
+  "taxCents": zod.int().min(joinBillResponseReceiptTaxCentsMin).max(joinBillResponseReceiptTaxCentsMax),
   "tipMode": zod.enum(['amount', 'percent']),
-  "tipValue": zod.number().int().min(joinBillResponseReceiptTipValueMin).max(joinBillResponseReceiptTipValueMax).describe('Cents for amount; basis points for percent (2000 = 20%).'),
-  "adjustmentCents": zod.number().int().min(joinBillResponseReceiptAdjustmentCentsMin).max(joinBillResponseReceiptAdjustmentCentsMax),
-  "totalCents": zod.number().int().min(joinBillResponseReceiptTotalCentsMin).max(joinBillResponseReceiptTotalCentsMax),
+  "tipValue": zod.int().min(joinBillResponseReceiptTipValueMin).max(joinBillResponseReceiptTipValueMax).describe('Cents for amount; basis points for percent (2000 = 20%).'),
+  "adjustmentCents": zod.int().min(joinBillResponseReceiptAdjustmentCentsMin).max(joinBillResponseReceiptAdjustmentCentsMax),
+  "totalCents": zod.int().min(joinBillResponseReceiptTotalCentsMin).max(joinBillResponseReceiptTotalCentsMax),
   "warnings": zod.array(zod.string())
 }),
   "participants": zod.array(zod.object({
@@ -195,11 +195,11 @@ export const JoinBillResponse = zod.object({
   "isPayer": zod.boolean(),
   "finished": zod.boolean(),
   "paid": zod.boolean(),
-  "itemCents": zod.number().int(),
-  "taxCents": zod.number().int(),
-  "tipCents": zod.number().int(),
-  "adjustmentCents": zod.number().int(),
-  "totalCents": zod.number().int()
+  "itemCents": zod.int(),
+  "taxCents": zod.int(),
+  "tipCents": zod.int(),
+  "adjustmentCents": zod.int(),
+  "totalCents": zod.int()
 })),
   "unclaimedItemIds": zod.array(zod.string()),
   "venmo": zod.string(),
@@ -207,7 +207,7 @@ export const JoinBillResponse = zod.object({
   "venmoUrl": zod.string(),
   "venmoWebUrl": zod.string(),
   "paymentNote": zod.string(),
-  "outstandingCents": zod.number().int()
+  "outstandingCents": zod.int()
 })
 
 
@@ -249,7 +249,7 @@ export const GetBillResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['open', 'closed']),
-  "revision": zod.number().int(),
+  "revision": zod.int(),
   "meId": zod.string(),
   "payerId": zod.string(),
   "splitMode": zod.enum(['equal', 'itemized']),
@@ -258,19 +258,19 @@ export const GetBillResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string().min(1).max(getBillResponseReceiptItemsItemNameMax),
-  "cents": zod.number().int().min(getBillResponseReceiptItemsItemCentsMin).max(getBillResponseReceiptItemsItemCentsMax),
+  "cents": zod.int().min(getBillResponseReceiptItemsItemCentsMin).max(getBillResponseReceiptItemsItemCentsMax),
   "mode": zod.enum(['equal', 'amount', 'percent', 'units']),
-  "units": zod.number().int().min(1).max(getBillResponseReceiptItemsItemUnitsMax),
+  "units": zod.int().min(1).max(getBillResponseReceiptItemsItemUnitsMax),
   "allocations": zod.array(zod.object({
   "participantId": zod.string(),
-  "value": zod.number().int().min(getBillResponseReceiptItemsItemAllocationsItemValueMin).max(getBillResponseReceiptItemsItemAllocationsItemValueMax)
+  "value": zod.int().min(getBillResponseReceiptItemsItemAllocationsItemValueMin).max(getBillResponseReceiptItemsItemAllocationsItemValueMax)
 })).max(getBillResponseReceiptItemsItemAllocationsMax)
 })).max(getBillResponseReceiptItemsMax),
-  "taxCents": zod.number().int().min(getBillResponseReceiptTaxCentsMin).max(getBillResponseReceiptTaxCentsMax),
+  "taxCents": zod.int().min(getBillResponseReceiptTaxCentsMin).max(getBillResponseReceiptTaxCentsMax),
   "tipMode": zod.enum(['amount', 'percent']),
-  "tipValue": zod.number().int().min(getBillResponseReceiptTipValueMin).max(getBillResponseReceiptTipValueMax).describe('Cents for amount; basis points for percent (2000 = 20%).'),
-  "adjustmentCents": zod.number().int().min(getBillResponseReceiptAdjustmentCentsMin).max(getBillResponseReceiptAdjustmentCentsMax),
-  "totalCents": zod.number().int().min(getBillResponseReceiptTotalCentsMin).max(getBillResponseReceiptTotalCentsMax),
+  "tipValue": zod.int().min(getBillResponseReceiptTipValueMin).max(getBillResponseReceiptTipValueMax).describe('Cents for amount; basis points for percent (2000 = 20%).'),
+  "adjustmentCents": zod.int().min(getBillResponseReceiptAdjustmentCentsMin).max(getBillResponseReceiptAdjustmentCentsMax),
+  "totalCents": zod.int().min(getBillResponseReceiptTotalCentsMin).max(getBillResponseReceiptTotalCentsMax),
   "warnings": zod.array(zod.string())
 }),
   "participants": zod.array(zod.object({
@@ -279,11 +279,11 @@ export const GetBillResponse = zod.object({
   "isPayer": zod.boolean(),
   "finished": zod.boolean(),
   "paid": zod.boolean(),
-  "itemCents": zod.number().int(),
-  "taxCents": zod.number().int(),
-  "tipCents": zod.number().int(),
-  "adjustmentCents": zod.number().int(),
-  "totalCents": zod.number().int()
+  "itemCents": zod.int(),
+  "taxCents": zod.int(),
+  "tipCents": zod.int(),
+  "adjustmentCents": zod.int(),
+  "totalCents": zod.int()
 })),
   "unclaimedItemIds": zod.array(zod.string()),
   "venmo": zod.string(),
@@ -291,7 +291,7 @@ export const GetBillResponse = zod.object({
   "venmoUrl": zod.string(),
   "venmoWebUrl": zod.string(),
   "paymentNote": zod.string(),
-  "outstandingCents": zod.number().int()
+  "outstandingCents": zod.int()
 })
 
 
@@ -337,36 +337,36 @@ export const changeBillBodyAllocationsItemValueMax = 100000000;
 
 
 export const ChangeBillBody = zod.object({
-  "revision": zod.number().int().min(changeBillBodyRevisionMin),
+  "revision": zod.int().min(changeBillBodyRevisionMin),
   "action": zod.enum(['receipt', 'mode', 'claim', 'allocate', 'finish', 'reopen', 'close', 'payment']),
   "receipt": zod.object({
   "title": zod.string().min(1).max(changeBillBodyReceiptTitleMax),
   "items": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string().min(1).max(changeBillBodyReceiptItemsItemNameMax),
-  "cents": zod.number().int().min(changeBillBodyReceiptItemsItemCentsMin).max(changeBillBodyReceiptItemsItemCentsMax),
+  "cents": zod.int().min(changeBillBodyReceiptItemsItemCentsMin).max(changeBillBodyReceiptItemsItemCentsMax),
   "mode": zod.enum(['equal', 'amount', 'percent', 'units']),
-  "units": zod.number().int().min(1).max(changeBillBodyReceiptItemsItemUnitsMax),
+  "units": zod.int().min(1).max(changeBillBodyReceiptItemsItemUnitsMax),
   "allocations": zod.array(zod.object({
   "participantId": zod.string(),
-  "value": zod.number().int().min(changeBillBodyReceiptItemsItemAllocationsItemValueMin).max(changeBillBodyReceiptItemsItemAllocationsItemValueMax)
+  "value": zod.int().min(changeBillBodyReceiptItemsItemAllocationsItemValueMin).max(changeBillBodyReceiptItemsItemAllocationsItemValueMax)
 })).max(changeBillBodyReceiptItemsItemAllocationsMax)
 })).max(changeBillBodyReceiptItemsMax),
-  "taxCents": zod.number().int().min(changeBillBodyReceiptTaxCentsMin).max(changeBillBodyReceiptTaxCentsMax),
+  "taxCents": zod.int().min(changeBillBodyReceiptTaxCentsMin).max(changeBillBodyReceiptTaxCentsMax),
   "tipMode": zod.enum(['amount', 'percent']),
-  "tipValue": zod.number().int().min(changeBillBodyReceiptTipValueMin).max(changeBillBodyReceiptTipValueMax).describe('Cents for amount; basis points for percent (2000 = 20%).'),
-  "adjustmentCents": zod.number().int().min(changeBillBodyReceiptAdjustmentCentsMin).max(changeBillBodyReceiptAdjustmentCentsMax),
-  "totalCents": zod.number().int().min(changeBillBodyReceiptTotalCentsMin).max(changeBillBodyReceiptTotalCentsMax),
+  "tipValue": zod.int().min(changeBillBodyReceiptTipValueMin).max(changeBillBodyReceiptTipValueMax).describe('Cents for amount; basis points for percent (2000 = 20%).'),
+  "adjustmentCents": zod.int().min(changeBillBodyReceiptAdjustmentCentsMin).max(changeBillBodyReceiptAdjustmentCentsMax),
+  "totalCents": zod.int().min(changeBillBodyReceiptTotalCentsMin).max(changeBillBodyReceiptTotalCentsMax),
   "warnings": zod.array(zod.string())
 }).optional(),
   "splitMode": zod.enum(['equal', 'itemized']).optional(),
   "itemId": zod.string().optional(),
   "claimed": zod.boolean().optional(),
   "itemMode": zod.enum(['equal', 'amount', 'percent', 'units']).optional(),
-  "units": zod.number().int().min(1).max(changeBillBodyUnitsMax).optional(),
+  "units": zod.int().min(1).max(changeBillBodyUnitsMax).optional(),
   "allocations": zod.array(zod.object({
   "participantId": zod.string(),
-  "value": zod.number().int().min(changeBillBodyAllocationsItemValueMin).max(changeBillBodyAllocationsItemValueMax)
+  "value": zod.int().min(changeBillBodyAllocationsItemValueMin).max(changeBillBodyAllocationsItemValueMax)
 })).optional(),
   "finished": zod.boolean().optional(),
   "force": zod.boolean().optional(),
@@ -408,7 +408,7 @@ export const ChangeBillResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "status": zod.enum(['open', 'closed']),
-  "revision": zod.number().int(),
+  "revision": zod.int(),
   "meId": zod.string(),
   "payerId": zod.string(),
   "splitMode": zod.enum(['equal', 'itemized']),
@@ -417,19 +417,19 @@ export const ChangeBillResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string().min(1).max(changeBillResponseReceiptItemsItemNameMax),
-  "cents": zod.number().int().min(changeBillResponseReceiptItemsItemCentsMin).max(changeBillResponseReceiptItemsItemCentsMax),
+  "cents": zod.int().min(changeBillResponseReceiptItemsItemCentsMin).max(changeBillResponseReceiptItemsItemCentsMax),
   "mode": zod.enum(['equal', 'amount', 'percent', 'units']),
-  "units": zod.number().int().min(1).max(changeBillResponseReceiptItemsItemUnitsMax),
+  "units": zod.int().min(1).max(changeBillResponseReceiptItemsItemUnitsMax),
   "allocations": zod.array(zod.object({
   "participantId": zod.string(),
-  "value": zod.number().int().min(changeBillResponseReceiptItemsItemAllocationsItemValueMin).max(changeBillResponseReceiptItemsItemAllocationsItemValueMax)
+  "value": zod.int().min(changeBillResponseReceiptItemsItemAllocationsItemValueMin).max(changeBillResponseReceiptItemsItemAllocationsItemValueMax)
 })).max(changeBillResponseReceiptItemsItemAllocationsMax)
 })).max(changeBillResponseReceiptItemsMax),
-  "taxCents": zod.number().int().min(changeBillResponseReceiptTaxCentsMin).max(changeBillResponseReceiptTaxCentsMax),
+  "taxCents": zod.int().min(changeBillResponseReceiptTaxCentsMin).max(changeBillResponseReceiptTaxCentsMax),
   "tipMode": zod.enum(['amount', 'percent']),
-  "tipValue": zod.number().int().min(changeBillResponseReceiptTipValueMin).max(changeBillResponseReceiptTipValueMax).describe('Cents for amount; basis points for percent (2000 = 20%).'),
-  "adjustmentCents": zod.number().int().min(changeBillResponseReceiptAdjustmentCentsMin).max(changeBillResponseReceiptAdjustmentCentsMax),
-  "totalCents": zod.number().int().min(changeBillResponseReceiptTotalCentsMin).max(changeBillResponseReceiptTotalCentsMax),
+  "tipValue": zod.int().min(changeBillResponseReceiptTipValueMin).max(changeBillResponseReceiptTipValueMax).describe('Cents for amount; basis points for percent (2000 = 20%).'),
+  "adjustmentCents": zod.int().min(changeBillResponseReceiptAdjustmentCentsMin).max(changeBillResponseReceiptAdjustmentCentsMax),
+  "totalCents": zod.int().min(changeBillResponseReceiptTotalCentsMin).max(changeBillResponseReceiptTotalCentsMax),
   "warnings": zod.array(zod.string())
 }),
   "participants": zod.array(zod.object({
@@ -438,11 +438,11 @@ export const ChangeBillResponse = zod.object({
   "isPayer": zod.boolean(),
   "finished": zod.boolean(),
   "paid": zod.boolean(),
-  "itemCents": zod.number().int(),
-  "taxCents": zod.number().int(),
-  "tipCents": zod.number().int(),
-  "adjustmentCents": zod.number().int(),
-  "totalCents": zod.number().int()
+  "itemCents": zod.int(),
+  "taxCents": zod.int(),
+  "tipCents": zod.int(),
+  "adjustmentCents": zod.int(),
+  "totalCents": zod.int()
 })),
   "unclaimedItemIds": zod.array(zod.string()),
   "venmo": zod.string(),
@@ -450,7 +450,7 @@ export const ChangeBillResponse = zod.object({
   "venmoUrl": zod.string(),
   "venmoWebUrl": zod.string(),
   "paymentNote": zod.string(),
-  "outstandingCents": zod.number().int()
+  "outstandingCents": zod.int()
 })
 
 
@@ -501,19 +501,19 @@ export const ScanReceiptResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string().min(1).max(scanReceiptResponseItemsItemNameMax),
-  "cents": zod.number().int().min(scanReceiptResponseItemsItemCentsMin).max(scanReceiptResponseItemsItemCentsMax),
+  "cents": zod.int().min(scanReceiptResponseItemsItemCentsMin).max(scanReceiptResponseItemsItemCentsMax),
   "mode": zod.enum(['equal', 'amount', 'percent', 'units']),
-  "units": zod.number().int().min(1).max(scanReceiptResponseItemsItemUnitsMax),
+  "units": zod.int().min(1).max(scanReceiptResponseItemsItemUnitsMax),
   "allocations": zod.array(zod.object({
   "participantId": zod.string(),
-  "value": zod.number().int().min(scanReceiptResponseItemsItemAllocationsItemValueMin).max(scanReceiptResponseItemsItemAllocationsItemValueMax)
+  "value": zod.int().min(scanReceiptResponseItemsItemAllocationsItemValueMin).max(scanReceiptResponseItemsItemAllocationsItemValueMax)
 })).max(scanReceiptResponseItemsItemAllocationsMax)
 })).max(scanReceiptResponseItemsMax),
-  "taxCents": zod.number().int().min(scanReceiptResponseTaxCentsMin).max(scanReceiptResponseTaxCentsMax),
+  "taxCents": zod.int().min(scanReceiptResponseTaxCentsMin).max(scanReceiptResponseTaxCentsMax),
   "tipMode": zod.enum(['amount', 'percent']),
-  "tipValue": zod.number().int().min(scanReceiptResponseTipValueMin).max(scanReceiptResponseTipValueMax).describe('Cents for amount; basis points for percent (2000 = 20%).'),
-  "adjustmentCents": zod.number().int().min(scanReceiptResponseAdjustmentCentsMin).max(scanReceiptResponseAdjustmentCentsMax),
-  "totalCents": zod.number().int().min(scanReceiptResponseTotalCentsMin).max(scanReceiptResponseTotalCentsMax),
+  "tipValue": zod.int().min(scanReceiptResponseTipValueMin).max(scanReceiptResponseTipValueMax).describe('Cents for amount; basis points for percent (2000 = 20%).'),
+  "adjustmentCents": zod.int().min(scanReceiptResponseAdjustmentCentsMin).max(scanReceiptResponseAdjustmentCentsMax),
+  "totalCents": zod.int().min(scanReceiptResponseTotalCentsMin).max(scanReceiptResponseTotalCentsMax),
   "warnings": zod.array(zod.string())
 })
 
