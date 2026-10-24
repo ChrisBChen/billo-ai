@@ -19,10 +19,9 @@ export function GroupView({ bill, send, pending, onClose }: { bill: BillView; se
       {bill.participants.map((p, i) => <div className="sp-person-row" key={p.id} data-testid={`row-person-${p.id}`}>
         <Avatar name={p.name} index={i} />
         <div className="sp-grow"><h3>{p.name}{p.id === bill.meId ? ' (you)' : ''}</h3>
-          {p.isPayer ? <span className="sp-status done"><Utensils size={13} />Paid the restaurant</span>
+          {closed && p.isPayer ? <span className="sp-status done"><Utensils size={13} />Paid the restaurant</span>
             : closed ? <span className={`sp-payment-status ${p.paid ? 'paid' : ''}`}>{p.paid ? <><CircleCheck size={13} />Reported paid</> : <><Clock3 size={13} />Not paid yet</>}</span>
             : <span className={`sp-status ${p.finished ? 'done' : ''}`}>{p.finished ? <><CircleCheck size={13} />Confirmed</> : <><Clock3 size={13} />Choosing</>}</span>}
-          {p.isPayer && !closed && <span className={`sp-status ${p.finished ? 'done' : ''}`} style={{ marginLeft: 8 }}>{p.finished ? 'Confirmed' : 'Choosing'}</span>}
         </div>
         <span className="sp-money" data-testid={`amount-person-${p.id}`}>{money(p.totalCents)}</span>
       </div>)}

@@ -51,11 +51,17 @@ Receipt and tip review is a required payer checkpoint before Items, Group, or In
 
 **How to apply:** Scanning is extraction, not confirmation. Keep the review flow gated across reloads; only the payer's explicit confirmation unlocks participation. Hide all desktop/mobile bill tabs until confirmation rather than showing disabled tabs; do not show the removed "Confirm the receipt and tip to unlock…" notice.
 
-Keep the existing OCR provider and scanning implementation unchanged unless the user explicitly authorizes a future change.
+Keep the existing OCR provider. Prompt and receipt-reconciliation improvements are authorized; replacing the provider is not.
 
-**Why:** After discussing alternative providers, the user said to stop changing OCR and keep it as is.
+**Why:** After discussing alternative providers, the user said to keep the existing OCR. They later explicitly requested better auto-gratuity recognition and mathematically consistent totals.
 
 **How to apply:** Do not bundle an OCR replacement with splitting or receipt UI work.
+
+Automatic gratuities belong in gratuity, not fees or purchase items. Include actual additional tips once, and prefer item-based arithmetic over an inconsistent printed total.
+
+**Why:** The user repeatedly reported missed auto-gratuities and unrelated totals, and asked for item totals as the fallback with a receipt-total cross-check.
+
+**How to apply:** Treat the printed total as a check, not permission to invent a tip or adjustment. Only actual labelled charges count; suggested-tip tables do not. Missing or unreadable tips default to zero for payer review, and discrepancies must be visible before confirmation.
 
 Short invite URLs must be native to Billo, not Bitly or another external shortening provider.
 

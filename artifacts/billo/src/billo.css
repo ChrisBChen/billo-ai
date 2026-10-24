@@ -193,7 +193,9 @@
 .sp-payment-overview > div:last-child { text-align: right; }
 .sp-demo-notice { display: flex; align-items: center; gap: 8px; margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--sp-line); color: var(--sp-muted); font-size: 12px; line-height: 1.5; }
 .sp-page { animation: sp-page-in .18s ease-out; }
-@keyframes sp-page-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+/* Transforms here would temporarily anchor the fixed mobile footer to this
+   page instead of the viewport, making it jump when the animation ends. */
+@keyframes sp-page-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sp-sheet-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 @media(max-width:1100px) {
   .sp-layout { gap: 26px; grid-template-columns: 164px minmax(0,1fr); }
@@ -264,7 +266,9 @@
 .sp-check-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; cursor: pointer; font-size: 15px; }
 .split-v2 .sp-check-row input { width: 22px; height: 22px; min-height: 22px; padding: 0; accent-color: var(--sp-accent); margin-top: 2px; flex-shrink: 0; }
 .sp-check-row small { display: block; color: var(--sp-muted); font-size: 13px; }
-.sp-file-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+/* The custom camera/upload buttons trigger these; disabled input styles must
+   never reveal native file controls during photo preparation or scanning. */
+.split-v2 input.sp-file-input { display: none; }
 .sp-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 8px; border-radius: 8px; background: var(--sp-soft); color: var(--sp-accent); font-weight: 560; }
 .sp-pill.muted { background: var(--sp-bg); color: var(--sp-muted); }
 .sp-qr-real { background: var(--sp-surface); padding: 14px; border-radius: 14px; display: inline-block; margin: 18px auto 10px; }

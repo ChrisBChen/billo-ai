@@ -12,7 +12,7 @@ export function ReceiptView({ bill, canEdit, onEdit }: { bill: BillView; canEdit
     <div className="sp-totals" style={{ marginTop: 10 }}>
       <div className="sp-row"><span>Subtotal</span><span className="sp-money">{money(sub)}</span></div>
       <div className="sp-row"><span>Tax</span><span className="sp-money">{money(r.taxCents)}</span></div>
-      <div className="sp-row"><span>Tip{r.tipMode === 'percent' ? ` (${r.tipValue / 100}%)` : ''}</span><span className="sp-money">{money(tip)}</span></div>
+      <div className="sp-row"><span>Tip / gratuity{r.tipMode === 'percent' ? ` (${r.tipValue / 100}%)` : ''}</span><span className="sp-money">{money(tip)}</span></div>
       {r.adjustmentCents !== 0 && <div className="sp-row"><span>Total adjustment</span><span className="sp-money">{money(r.adjustmentCents)}</span></div>}
       <div className="sp-row sp-total-row"><span>Total</span><span className="sp-money" data-testid="text-receipt-total">{money(r.totalCents)}</span></div>
     </div>

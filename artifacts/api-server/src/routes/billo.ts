@@ -102,9 +102,11 @@ router.post("/billo/bills/:id/scan", async (req, res): Promise<void> => {
   const id = idOf(req.params.id!), me = await session(req, id);
   const parsed = ScanReceiptBody.safeParse(req.body);
   requireThat(parsed.success, "Use a receipt image under 8 MB.");
+  let fallbackTitle = "Receipt";
   await mutate(id, s => {
     requireThat(s.payerId === me, "Only the payer can scan receipts.", 403);
     requireThat(s.status === "open", "This bill is closed.", 409);
+    fallbackTitle = s.title;
     s.scans = s.scans.filter(t => Date.now() - t < 3600000);
     requireThat(s.scans.length < 5, "Scanning is limited to five attempts per bill per hour. You can still enter the receipt manually.", 429);
     s.scans.push(Date.now());
@@ -112,7 +114,7 @@ router.post("/billo/bills/:id/scan", async (req, res): Promise<void> => {
     invalidate(s);
     s.revision++;
   });
-  res.json(await extractReceipt(parsed.data.dataUrl));
+  res.json(await extractReceipt(parsed.data.dataUrl, fallbackTitle));
 });
 export const billoErrors: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof BillError) { res.status(err.status).json({ error: err.message }); return; }

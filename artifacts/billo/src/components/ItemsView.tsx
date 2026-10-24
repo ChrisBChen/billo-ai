@@ -32,7 +32,7 @@ export function ItemsView({ bill, send, pending, onBreakdown, onPrimary, onAddRe
 
   return <>
     {finished && !closed && <div className="sp-notice" style={{ marginBottom: 16 }} data-testid="status-waiting"><Clock3 size={17} />{bill.participants.every(p => p.finished) ? <>You confirmed. Waiting for {findPerson(bill, bill.payerId)?.name ?? 'the payer'}{isHost ? ' (you)' : ''} to close the bill.</> : 'You confirmed your items. Waiting for everyone to finish choosing.'}</div>}
-    {closed && <div className="sp-notice" style={{ marginBottom: 16 }}><LockKeyhole size={17} />This bill is closed.{isHost && ' Amounts are final.'}</div>}
+    {closed && <div className="sp-notice" style={{ marginBottom: 16 }}><LockKeyhole size={17} />This bill is closed.</div>}
     <div className="sp-selection-grid">
       <div>
         <div className="sp-card">
@@ -47,7 +47,7 @@ export function ItemsView({ bill, send, pending, onBreakdown, onPrimary, onAddRe
               <div className="sp-item-meta"><span>{label(item)}</span></div>
             </div>; })}
         </div>
-        {(!closed || isHost) && <p className="sp-list-note">{closed ? 'Amounts are final.' : 'Tap what you ate. Shared items split equally between everyone who selects them. Tax and tip follow your share.'}</p>}
+        {!closed && <p className="sp-list-note">Tap what you ate. Shared items split equally between everyone who selects them. Tax and tip follow your share.</p>}
       </div>
       <aside className="sp-card sp-pad sp-summary">
         {showAmounts ? <>
@@ -59,7 +59,6 @@ export function ItemsView({ bill, send, pending, onBreakdown, onPrimary, onAddRe
           <p className="sp-small sp-muted">Your amount appears after the payer closes the bill.</p>
         </div>}
         <button className={`sp-button full ${finished && !closed ? 'secondary' : ''}`} data-testid="button-primary" disabled={(!ready && !closed) || pending} onClick={onPrimary}>{finished && !closed ? <Pencil size={17} /> : null}{primaryLabel}{!finished && !closed && <Check size={18} />}</button>
-        <p className="sp-footer-note">No payment is made here.</p>
       </aside>
     </div>
     <div className="sp-sticky-footer">{showAmounts ? <button onClick={onBreakdown} aria-label="View your share breakdown" data-testid="button-breakdown"><span className="sp-small">{closed ? 'Final share' : 'Your share'}<ChevronDown size={13} /></span><span className="sp-money">{money(me?.totalCents ?? 0)}</span></button> : <span className="sp-small">{selectedCount} {selectedCount === 1 ? 'item' : 'items'} selected</span>}<button className={`sp-button ${finished && !closed ? 'secondary' : ''}`} data-testid="button-primary-mobile" disabled={(!ready && !closed) || pending} onClick={onPrimary}>{primaryLabel}{!finished && !closed && <Check size={18} />}</button></div>

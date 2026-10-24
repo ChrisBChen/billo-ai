@@ -91,7 +91,7 @@ export function ReceiptEditor({ bill, draft, source, send, pending, onCancel, on
       <div className="sp-row"><span>Subtotal</span><strong className="sp-money" data-testid="text-subtotal">{money(parsed.subtotal)}</strong></div>
       <div className="sp-row"><label htmlFor="r-tax">Tax ($)</label><input id="r-tax" data-testid="input-tax" className="sp-amount-input" inputMode="decimal" value={tax} onChange={e => setTax(e.target.value)} /></div>
       <div className="sp-stack" style={{ gap: 10 }}>
-        <div className="sp-row sp-between"><span>Tip</span><strong className="sp-money">{money(parsed.tipCents)}</strong></div>
+        <div className="sp-row sp-between"><span>Tip / gratuity</span><strong className="sp-money">{money(parsed.tipCents)}</strong></div>
         <div className="sp-segments two">{(['percent', 'amount'] as const).map(m => <button key={m} data-testid={`button-tip-${m}`} className={tipMode === m ? 'active' : ''} onClick={() => changeTipMode(m)}>{m === 'percent' ? 'Percent' : 'Amount'}</button>)}</div>
         {tipMode === 'percent' && <div className="sp-presets">{['15', '18', '20', '22'].map(p => <button key={p} className={tip === p ? 'active' : ''} onClick={() => setTip(p)}>{p}%</button>)}</div>}
         <div className="sp-row sp-between"><label htmlFor="r-tip" className="sp-small sp-muted">{tipMode === 'percent' ? 'Percent of pre-tax subtotal' : 'Fixed amount ($)'}</label><div className="sp-number-wrap"><input id="r-tip" data-testid="input-tip" inputMode="decimal" value={tip} onChange={e => setTip(e.target.value)} />{tipMode === 'percent' && <span className="sp-suffix">%</span>}</div></div>
