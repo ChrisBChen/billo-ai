@@ -50,7 +50,7 @@ See `.agents/memory/product-scope.md` for product intent and constraints.
 
 - Zelle runs inside participating banks; do not invent a universal prefilled Zelle app link.
 - Venmo custom-scheme behavior depends on device and app installation. Keep web and copy fallbacks, and never treat opening a link as a confirmed payment.
-- API request bodies carry bill revisions. A 409 means another participant changed the bill; refresh before retrying.
+- Bill writes are serialized by database row locks. Independent own-claim updates use current capacity rather than rejecting unrelated revisions. Receipt replacements guard against newer receipt edits only and preserve claims on unchanged items.
 
 ## Pointers
 

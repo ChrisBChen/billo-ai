@@ -1,8 +1,9 @@
-import { CircleCheck, Clock3, LockKeyhole, RotateCcw, Users, Utensils } from 'lucide-react';
+import { Link } from 'wouter';
+import { CircleCheck, Plus, Clock3, LockKeyhole, RotateCcw, Utensils } from 'lucide-react';
 import type { BillView } from '@workspace/api-client-react';
 import { Avatar } from '@/components/Chrome';
 import type { Change } from '@/hooks/use-bill-actions';
-import { money } from '@/lib/billo';
+import { billReady, fmtAlloc, itemRemaining, money } from '@/lib/billo';
 
 export function GroupView({ bill, send, pending, onClose, onPay }: { bill: BillView; send: (c: Change, o?: { success?: string }) => void; pending: boolean; onClose: () => void; onPay: () => void }) {
   const isHost = bill.meId === bill.payerId, closed = bill.status === 'closed';
@@ -26,16 +27,14 @@ export function GroupView({ bill, send, pending, onClose, onPay }: { bill: BillV
       </div>)}
       {bill.participants.length === 1 && <p className="sp-small sp-muted" style={{ padding: '12px 0' }}>Nobody else has joined yet. Share the link from Invite.</p>}
     </div>
-    {unclaimed.length > 0 && !closed && <div className="sp-card sp-pad"><h3>Unclaimed items</h3><div className="sp-unclaimed" style={{ marginTop: 8 }}>{unclaimed.map(i => <div key={i.id} className="sp-row sp-between"><span>{i.name}</span><span className="sp-money">{money(i.cents)}</span></div>)}</div></div>}
+    {unclaimed.length > 0 && !closed && <div className="sp-card sp-pad"><h3>Unclaimed shares</h3><div className="sp-unclaimed" style={{ marginTop: 8 }}>{unclaimed.map(i => <div key={i.id} className="sp-row sp-between"><span>{i.name}</span><span className="sp-money">{fmtAlloc(i, itemRemaining(i))}</span></div>)}</div></div>}
     {isHost && !closed && <div className="sp-card sp-pad sp-stack" style={{ gap: 14 }}>
-      <h3>Split method</h3>
-      {(['itemized', 'equal'] as const).map(m => <button key={m} data-testid={`button-mode-${m}`} className={`sp-choice ${bill.splitMode === m ? 'selected' : ''}`} disabled={pending || bill.splitMode === m} onClick={() => send({ action: 'mode', splitMode: m }, { success: m === 'equal' ? 'Splitting the total equally' : 'Splitting by items' })}>
-        {m === 'equal' ? <Users size={24} /> : <Utensils size={24} />}<div className="sp-grow"><h3>{m === 'equal' ? 'Split the total equally' : 'Everyone chooses items'}</h3><p className="sp-small">{m === 'equal' ? 'Same amount for each person' : 'Share items equally, by $, %, or units'}</p></div></button>)}
       <button className="sp-link" data-testid="button-reopen" disabled={pending || confirmed === 0} onClick={() => send({ action: 'reopen' }, { success: 'Confirmations cleared. Everyone will re-confirm.' })}><RotateCcw size={16} />Ask everyone to confirm again</button>
-      <button className="sp-button full" data-testid="button-open-close" disabled={pending || !bill.receipt.items.length} onClick={onClose}><LockKeyhole size={18} />Close bill</button>
+      <button className="sp-button full" data-testid="button-open-close" disabled={pending || !billReady(bill)} onClick={onClose}><LockKeyhole size={18} />Close bill</button>
     </div>}
     {!isHost && !closed && <p className="sp-small sp-muted">{bill.participants.find(p => p.isPayer)?.name} closes the bill when everyone is done. You will see what to pay right away.</p>}
     {closed && !isHost && <button className="sp-button full" data-testid="button-open-payment" onClick={onPay}>Pay {bill.participants.find(p => p.isPayer)?.name}</button>}
     {closed && isHost && <p className="sp-small sp-muted">Paid marks are reported by each person and are not verified. Only they can change their own.</p>}
+    {closed && <Link href="/" className="sp-link" data-testid="link-new-receipt"><Plus size={16} />Start new receipt</Link>}
   </div>;
 }

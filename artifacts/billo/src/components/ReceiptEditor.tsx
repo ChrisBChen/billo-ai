@@ -1,23 +1,40 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Check, Info, Plus, Trash2 } from 'lucide-react';
 import type { BillItem, BillView, ReceiptDraft } from '@workspace/api-client-react';
 import { Spinner } from '@/components/Chrome';
 import type { Change } from '@/hooks/use-bill-actions';
-import { centsText, money, newId, parseCents, subtotalOf, tipCentsOf } from '@/lib/billo';
+import { centsText, modeLabel, money, newId, parseCents, SPLIT_MODES, subtotalOf, tipCentsOf, type ItemMode } from '@/lib/billo';
 
-type Row = { id: string; name: string; price: string; units: number };
+type Row = { id: string; name: string; price: string; mode: ItemMode | ''; units: string };
+const unitsOk = (u: string) => /^\d+$/.test(u.trim()) && Number(u) >= 1 && Number(u) <= 10000;
 type Send = (c: Change, o?: { success?: string; onSuccess?: () => void }) => void;
+
+function fingerprint(bill: BillView) {
+  const r = bill.receipt;
+  return JSON.stringify([bill.title, r.items.map(i => [i.id, i.name, i.cents, i.mode, i.units]), r.taxCents, r.tipMode, r.tipValue, r.adjustmentCents, r.totalCents]);
+}
 
 export function ReceiptEditor({ bill, draft, source, send, pending, onCancel, onSaved }: { bill: BillView; draft: ReceiptDraft; source: string; send: Send; pending: boolean; onCancel: () => void; onSaved: () => void }) {
   const [revision, setRevision] = useState(bill.revision);
-  const stale = revision !== bill.revision;
+  const [print, setPrint] = useState(() => fingerprint(bill));
+  const current = fingerprint(bill);
+  const stale = print !== current;
+  useEffect(() => {
+    // Identical receipt data is safe to rebase after unrelated updates or an
+    // identical save in another session; genuine receipt changes need review.
+    if (!stale) setRevision(bill.revision);
+  }, [stale, bill.revision]);
   const [title, setTitle] = useState(draft.title || bill.title);
-  const [rows, setRows] = useState<Row[]>(() => draft.items.length ? draft.items.map(i => ({ id: i.id || newId(), name: i.name, price: centsText(i.cents), units: i.units || 1 })) : [{ id: newId(), name: '', price: '', units: 1 }]);
+  const [rows, setRows] = useState<Row[]>(() => draft.items.length ? draft.items.map(i => ({ id: i.id || newId(), name: i.name, price: centsText(i.cents), mode: (i.mode === 'equal' ? '' : i.mode) as Row['mode'], units: i.mode === 'units' ? String(i.units) : '' })) : [{ id: newId(), name: '', price: '', mode: '', units: '' }]);
   const [tax, setTax] = useState(centsText(draft.taxCents));
   const [tipMode, setTipMode] = useState(draft.tipMode);
   const [tip, setTip] = useState(draft.tipMode === 'percent' ? String(draft.tipValue / 100) : centsText(draft.tipValue));
-  const [adj, setAdj] = useState(centsText(draft.adjustmentCents));
-  const [total, setTotal] = useState(centsText(draft.totalCents));
+  const [base, setBase] = useState<string | null>(() => {
+    const sub = subtotalOf(draft.items);
+    const initBase = draft.totalCents - tipCentsOf(sub, draft.tipMode, draft.tipValue);
+    const auto = sub + draft.taxCents;
+    return draft.items.length && initBase >= 0 && initBase !== auto ? centsText(initBase) : null;
+  });
   const [tried, setTried] = useState(false);
   const hasClaims = bill.receipt.items.some(i => i.allocations.length > 0) || bill.participants.some(p => p.finished);
 
@@ -25,40 +42,41 @@ export function ReceiptEditor({ bill, draft, source, send, pending, onCancel, on
     const items = rows.map(r => ({ ...r, cents: parseCents(r.price) }));
     const subtotal = subtotalOf(items.map(i => ({ cents: i.cents ?? 0 })));
     const taxCents = parseCents(tax);
-    const tipNum = tipMode === 'percent' ? (/^\d*(\.\d{0,2})?$/.test(tip.trim()) && tip.trim() !== '' ? Math.round(Number(tip) * 100) : null) : parseCents(tip);
-    const adjustmentCents = parseCents(adj, true);
-    const totalCents = parseCents(total);
+    const tipRaw = tip.trim();
+    const tipNum = tipMode === 'percent' ? (/^\d*(\.\d{0,2})?$/.test(tipRaw) && tipRaw !== '' && Number(tipRaw) <= 100 ? Math.round(Number(tipRaw) * 100) : null) : parseCents(tip);
     const tipCents = tipNum === null ? 0 : tipCentsOf(subtotal, tipMode, tipNum);
-    const computed = subtotal + (taxCents ?? 0) + tipCents + (adjustmentCents ?? 0);
-    return { items, subtotal, taxCents, tipNum, tipCents, adjustmentCents, totalCents, computed };
-  }, [rows, tax, tip, tipMode, adj, total]);
-  const rowErrors = parsed.items.map(i => !i.name.trim() ? 'Name needed' : i.cents === null ? 'Price needed' : i.cents > 1000000 ? 'Too large' : '');
-  const fieldsValid = !!title.trim() && rows.length > 0 && rowErrors.every(e => !e) && parsed.taxCents !== null && parsed.tipNum !== null && parsed.adjustmentCents !== null && parsed.totalCents !== null;
-  const mismatch = parsed.totalCents !== null && parsed.totalCents !== parsed.computed;
-  const valid = fieldsValid && !mismatch && parsed.computed >= 0;
+    const autoBase = subtotal + (taxCents ?? 0);
+    const baseCents = base === null ? autoBase : parseCents(base);
+    const adjustmentCents = (baseCents ?? autoBase) - autoBase;
+    const totalCents = (baseCents ?? autoBase) + tipCents;
+    return { items, subtotal, taxCents, tipNum, tipCents, autoBase, baseCents, adjustmentCents, totalCents };
+  }, [rows, tax, tip, tipMode, base]);
+  const rowErrors = parsed.items.map(i => !i.name.trim() ? 'Name needed' : i.cents === null ? 'Price needed' : i.cents > 1000000 ? 'Too large' : !i.mode ? 'Choose $, %, or #' : i.mode === 'units' && !unitsOk(i.units) ? 'Units: whole number 1 to 10000' : '');
+  const valid = !!title.trim() && rows.length > 0 && rowErrors.every(e => !e) && parsed.taxCents !== null && parsed.tipNum !== null && parsed.baseCents !== null;
 
   function update(id: string, patch: Partial<Row>) { setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r)); }
   function changeTipMode(mode: 'amount' | 'percent') {
     if (mode === tipMode) return;
-    setTip(mode === 'amount' ? centsText(parsed.tipCents) : parsed.subtotal ? (parsed.tipCents / parsed.subtotal * 100).toFixed(2).replace(/\.?0+$/, '') : '20');
+    setTip(mode === 'amount' ? centsText(parsed.tipCents) : parsed.subtotal ? Math.min(100, parsed.tipCents / parsed.subtotal * 100).toFixed(2).replace(/\.?0+$/, '') : '20');
     setTipMode(mode);
   }
+  function keepDraft() { setRevision(bill.revision); setPrint(current); }
   function save() {
     setTried(true);
     if (!valid || pending || stale) return;
     const existing = new Map(bill.receipt.items.map(i => [i.id, i]));
     const items: BillItem[] = parsed.items.map(i => {
       const prev = existing.get(i.id);
-      return { id: i.id, name: i.name.trim(), cents: i.cents ?? 0, units: i.units, mode: prev?.mode ?? 'equal', allocations: prev?.allocations ?? [] };
+      return { id: i.id, name: i.name.trim(), cents: i.cents ?? 0, units: i.mode === 'units' ? Number(i.units) : 1, mode: i.mode as ItemMode, allocations: prev?.allocations ?? [] };
     });
-    send({ revision, action: 'receipt', receipt: { title: title.trim(), items, taxCents: parsed.taxCents ?? 0, tipMode, tipValue: parsed.tipNum ?? 0, adjustmentCents: parsed.adjustmentCents ?? 0, totalCents: parsed.totalCents ?? 0, warnings: [] } }, { success: 'Receipt saved', onSuccess: onSaved });
+    send({ revision, action: 'receipt', receipt: { title: title.trim(), items, taxCents: parsed.taxCents ?? 0, tipMode, tipValue: parsed.tipNum ?? 0, adjustmentCents: parsed.adjustmentCents, totalCents: parsed.totalCents, warnings: [] } }, { success: 'Receipt and tip confirmed', onSuccess: onSaved });
   }
 
   return <div className="sp-card sp-pad sp-stack sp-content">
-    {stale && <div className="sp-notice warning" role="alert"><div>The bill changed while you were editing. Saving this draft will replace the current receipt and reset everyone's choices.<button className="sp-link" onClick={() => setRevision(bill.revision)}>I understand — keep my draft</button></div></div>}
+    {stale && <div className="sp-notice warning" role="alert"><div>The receipt was changed in another session. Saving your draft replaces it; choices on items whose price or split method changed will be cleared.<div className="sp-actions" style={{ marginTop: 8 }}><button className="sp-link" data-testid="button-keep-draft" onClick={keepDraft}>Keep my draft</button><button className="sp-link" data-testid="button-discard-draft" onClick={onCancel}>Cancel and reopen</button></div></div></div>}
     <div className="sp-row sp-between"><span className="sp-small sp-muted">{source}</span><span className="sp-pill muted">Not saved yet</span></div>
     {draft.warnings.length > 0 && <div className="sp-notice warning"><AlertTriangle size={17} /><div>{draft.warnings.map(w => <div key={w}>{w}</div>)}</div></div>}
-    {hasClaims && <div className="sp-notice"><Info size={17} />Saving changes resets everyone's item choices and confirmations.</div>}
+    {hasClaims && <div className="sp-notice"><Info size={17} />Choices stay on unchanged items. Changing an item's price or split method clears choices for that item.</div>}
     <label className="sp-field">Bill name<input data-testid="input-receipt-title" value={title} maxLength={100} onChange={e => setTitle(e.target.value)} /></label>
     <div className="sp-receipt-items">{rows.map((r, idx) => <div key={r.id}>
       <div className="sp-receipt-row">
@@ -66,10 +84,14 @@ export function ReceiptEditor({ bill, draft, source, send, pending, onCancel, on
         <input data-testid={`input-item-price-${idx}`} inputMode="decimal" aria-label={`Item ${idx + 1} price in dollars`} value={r.price} placeholder="0.00" onChange={e => update(r.id, { price: e.target.value })} style={{ textAlign: 'right' }} />
         <button className="sp-icon" data-testid={`button-remove-item-${idx}`} aria-label={`Remove ${r.name || 'item'}`} onClick={() => setRows(prev => prev.filter(x => x.id !== r.id))}><Trash2 size={18} /></button>
       </div>
+      <div className="sp-row" style={{ gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+        <div className="sp-segments" role="radiogroup" aria-label={`Split method for item ${idx + 1}`} style={{ flex: '1 1 160px' }}>{SPLIT_MODES.map(m => <button key={m} role="radio" aria-checked={r.mode === m} data-testid={`button-item-mode-${m}-${idx}`} className={r.mode === m ? 'active' : ''} onClick={() => update(r.id, { mode: m })}>{modeLabel[m]}</button>)}</div>
+        {r.mode === 'units' && <input className="sp-amount-input" data-testid={`input-item-units-${idx}`} aria-label={`Item ${idx + 1} total units`} inputMode="numeric" placeholder="Units" value={r.units} onChange={e => update(r.id, { units: e.target.value })} style={{ width: 90 }} />}
+      </div>
       {tried && rowErrors[idx] && <span className="sp-error-text">{rowErrors[idx]}</span>}
     </div>)}</div>
     {!rows.length && <p className="sp-small sp-muted">Add at least one item.</p>}
-    <button className="sp-link" data-testid="button-add-item" disabled={rows.length >= 100} onClick={() => setRows(prev => [...prev, { id: newId(), name: '', price: '', units: 1 }])}><Plus size={19} />Add item</button>
+    <button className="sp-link" data-testid="button-add-item" disabled={rows.length >= 100} onClick={() => setRows(prev => [...prev, { id: newId(), name: '', price: '', mode: '', units: '' }])}><Plus size={19} />Add item</button>
     <div className="sp-totals">
       <div className="sp-row"><span>Subtotal</span><strong className="sp-money" data-testid="text-subtotal">{money(parsed.subtotal)}</strong></div>
       <div className="sp-row"><label htmlFor="r-tax">Tax ($)</label><input id="r-tax" data-testid="input-tax" className="sp-amount-input" inputMode="decimal" value={tax} onChange={e => setTax(e.target.value)} /></div>
@@ -79,13 +101,10 @@ export function ReceiptEditor({ bill, draft, source, send, pending, onCancel, on
         {tipMode === 'percent' && <div className="sp-presets">{['15', '18', '20', '22'].map(p => <button key={p} className={tip === p ? 'active' : ''} onClick={() => setTip(p)}>{p}%</button>)}</div>}
         <div className="sp-row sp-between"><label htmlFor="r-tip" className="sp-small sp-muted">{tipMode === 'percent' ? 'Percent of pre-tax subtotal' : 'Fixed amount ($)'}</label><div className="sp-number-wrap"><input id="r-tip" data-testid="input-tip" inputMode="decimal" value={tip} onChange={e => setTip(e.target.value)} />{tipMode === 'percent' && <span className="sp-suffix">%</span>}</div></div>
       </div>
-      <div className="sp-row"><label htmlFor="r-adj">Fees or discounts ($)<br /><span className="sp-small sp-muted">Negative for discounts</span></label><input id="r-adj" data-testid="input-adjustment" className="sp-amount-input" inputMode="decimal" value={adj} onChange={e => setAdj(e.target.value)} /></div>
-      <div className="sp-row sp-total-row"><label htmlFor="r-total">Receipt total</label><input id="r-total" data-testid="input-total" className="sp-amount-input" inputMode="decimal" value={total} onChange={e => setTotal(e.target.value)} /></div>
+      <div className="sp-row"><label htmlFor="r-base">Receipt total before tip{base !== null && <><br /><button className="sp-link sp-small" data-testid="button-use-item-total" onClick={() => setBase(null)}>Use item total</button></>}</label><input id="r-base" data-testid="input-base-total" className="sp-amount-input" inputMode="decimal" value={base ?? centsText(parsed.autoBase)} onChange={e => setBase(e.target.value)} /></div>
+      <div className="sp-row sp-total-row"><span>Total with tip</span><strong className="sp-money" data-testid="text-total">{money(parsed.totalCents)}</strong></div>
     </div>
-    {mismatch && <div className="sp-allocation-progress invalid" role="alert"><AlertTriangle size={18} /><div className="sp-grow"><strong>Total does not add up</strong><small>Items, tax, tip, and adjustments come to {money(parsed.computed)}. The receipt says {money(parsed.totalCents ?? 0)}.</small>
-      <div className="sp-actions" style={{ marginTop: 8 }}><button className="sp-link" data-testid="button-use-computed" onClick={() => setTotal(centsText(parsed.computed))}>Use {money(parsed.computed)}</button>{parsed.adjustmentCents !== null && <button className="sp-link" data-testid="button-balance-adjustment" onClick={() => setAdj(centsText((parsed.adjustmentCents ?? 0) + (parsed.totalCents ?? 0) - parsed.computed))}>Balance with adjustment</button>}</div></div></div>}
-    {!mismatch && fieldsValid && <div className="sp-allocation-progress valid"><Check size={18} />Everything adds up to {money(parsed.computed)}</div>}
-    {tried && !fieldsValid && <p className="sp-error-text">Fix the highlighted fields. Prices use dollars and cents, like 12.50.</p>}
-    <div className="sp-actions"><button className="sp-button secondary" data-testid="button-cancel-receipt" onClick={onCancel}>Cancel</button><button className="sp-button" data-testid="button-save-receipt" disabled={pending || stale || (tried && !valid)} onClick={save}>{pending ? <><Spinner />Saving</> : <>Save receipt<Check size={18} /></>}</button></div>
+    {tried && !valid && <p className="sp-error-text">Fix the highlighted fields. Every item needs a split method, amounts must be valid and not negative, tip up to 100%.</p>}
+    <div className="sp-actions"><button className="sp-button secondary" data-testid="button-cancel-receipt" onClick={onCancel}>Cancel</button><button className="sp-button" data-testid="button-save-receipt" disabled={pending || stale || (tried && !valid)} onClick={save}>{pending ? <><Spinner />Confirming</> : <>Confirm receipt &amp; tip<Check size={18} /></>}</button></div>
   </div>;
 }

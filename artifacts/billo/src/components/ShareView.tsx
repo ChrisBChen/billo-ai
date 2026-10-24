@@ -1,9 +1,9 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { Copy, Link2, Share2 } from 'lucide-react';
+import { Copy, Link2, Settings2, Share2 } from 'lucide-react';
 import type { BillView } from '@workspace/api-client-react';
-import { billUrl, money } from '@/lib/billo';
+import { billReady, billUrl, money } from '@/lib/billo';
 
-export function ShareView({ bill, notify }: { bill: BillView; notify: (m: string) => void }) {
+export function ShareView({ bill, notify, onSetup }: { bill: BillView; notify: (m: string) => void; onSetup: () => void }) {
   const url = billUrl(bill.id);
   async function copy() {
     try { await navigator.clipboard.writeText(url); notify('Link copied'); }
@@ -13,6 +13,12 @@ export function ShareView({ bill, notify }: { bill: BillView; notify: (m: string
     if (navigator.share) {
       try { await navigator.share({ title: bill.title, text: `Pick what you had from ${bill.title} on Billo`, url }); } catch { /* dismissed */ }
     } else await copy();
+  }
+  if (!billReady(bill)) {
+    const host = bill.meId === bill.payerId;
+    return <div className="sp-card sp-pad sp-stack sp-center sp-content" data-testid="status-share-setup"><div className="sp-state-symbol"><Settings2 size={26} /></div>
+      <h2>Finish setup first</h2><p className="sp-muted">{host ? 'Add items and pick $, %, or # for each.' : 'The payer is still setting up.'}</p>
+      {host && <button className="sp-button" data-testid="button-share-setup" onClick={onSetup}>Go to receipt</button>}</div>;
   }
   return <div className="sp-card sp-pad sp-stack sp-content">
     <div className="sp-share-card"><h2>{bill.title}</h2><p className="sp-small sp-muted">{bill.participants.length} {bill.participants.length === 1 ? 'person' : 'people'}{bill.receipt.totalCents ? ` · ${money(bill.receipt.totalCents)}` : ''}</p>

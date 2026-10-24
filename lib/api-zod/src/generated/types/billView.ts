@@ -17,6 +17,8 @@ export interface BillView {
   meId: string;
   payerId: string;
   splitMode: BillViewSplitMode;
+  /** True after the payer reviews and confirms the receipt, split methods, and tip. Scanning alone never confirms a receipt. */
+  receiptConfirmed: boolean;
   receipt: ReceiptDraft;
   participants: Participant[];
   unclaimedItemIds: string[];

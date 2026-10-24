@@ -193,7 +193,7 @@ components:
         totalCents: { type: integer }
     BillView:
       type: object
-      required: [id, title, status, revision, meId, payerId, splitMode, receipt, participants, unclaimedItemIds, venmo, zelle, venmoUrl, venmoWebUrl, paymentNote, outstandingCents]
+      required: [id, title, status, revision, meId, payerId, splitMode, receipt, receiptConfirmed, participants, unclaimedItemIds, venmo, zelle, venmoUrl, venmoWebUrl, paymentNote, outstandingCents]
       properties:
         id: { type: string }
         title: { type: string }
@@ -202,6 +202,7 @@ components:
         meId: { type: string }
         payerId: { type: string }
         splitMode: { type: string, enum: [equal, itemized] }
+        receiptConfirmed: { type: boolean, description: "True after the payer reviews and confirms the receipt, split methods, and tip. Scanning alone never confirms a receipt." }
         receipt: { $ref: "#/components/schemas/ReceiptDraft" }
         participants: { type: array, items: { $ref: "#/components/schemas/Participant" } }
         unclaimedItemIds: { type: array, items: { type: string } }

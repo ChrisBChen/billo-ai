@@ -67,6 +67,7 @@ export const CreateBillResponse = zod.object({
   "meId": zod.string(),
   "payerId": zod.string(),
   "splitMode": zod.enum(['equal', 'itemized']),
+  "receiptConfirmed": zod.boolean().describe('True after the payer reviews and confirms the receipt, split methods, and tip. Scanning alone never confirms a receipt.'),
   "receipt": zod.object({
   "title": zod.string().min(1).max(createBillResponseReceiptTitleMax),
   "items": zod.array(zod.object({
@@ -169,6 +170,7 @@ export const JoinBillResponse = zod.object({
   "meId": zod.string(),
   "payerId": zod.string(),
   "splitMode": zod.enum(['equal', 'itemized']),
+  "receiptConfirmed": zod.boolean().describe('True after the payer reviews and confirms the receipt, split methods, and tip. Scanning alone never confirms a receipt.'),
   "receipt": zod.object({
   "title": zod.string().min(1).max(joinBillResponseReceiptTitleMax),
   "items": zod.array(zod.object({
@@ -253,6 +255,7 @@ export const GetBillResponse = zod.object({
   "meId": zod.string(),
   "payerId": zod.string(),
   "splitMode": zod.enum(['equal', 'itemized']),
+  "receiptConfirmed": zod.boolean().describe('True after the payer reviews and confirms the receipt, split methods, and tip. Scanning alone never confirms a receipt.'),
   "receipt": zod.object({
   "title": zod.string().min(1).max(getBillResponseReceiptTitleMax),
   "items": zod.array(zod.object({
@@ -412,6 +415,7 @@ export const ChangeBillResponse = zod.object({
   "meId": zod.string(),
   "payerId": zod.string(),
   "splitMode": zod.enum(['equal', 'itemized']),
+  "receiptConfirmed": zod.boolean().describe('True after the payer reviews and confirms the receipt, split methods, and tip. Scanning alone never confirms a receipt.'),
   "receipt": zod.object({
   "title": zod.string().min(1).max(changeBillResponseReceiptTitleMax),
   "items": zod.array(zod.object({

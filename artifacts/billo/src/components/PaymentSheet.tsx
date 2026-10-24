@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ArrowUpRight, Copy, Info } from 'lucide-react';
+import { Link } from 'wouter';
+import { ArrowUpRight, Copy, Info, Plus } from 'lucide-react';
 import type { BillView } from '@workspace/api-client-react';
 import { Avatar } from '@/components/Chrome';
 import { Sheet } from '@/components/Sheet';
@@ -39,5 +40,6 @@ export function PaymentSheet({ bill, send, pending, notify, onClose }: { bill: B
         <span><strong>I paid {payer.name}</strong><small>Self-reported so {payer.name} can track it. Billo does not verify payments.</small></span>
       </label>
     </>}
+    <Link href="/" className="sp-link" style={{ marginTop: 16 }} data-testid="link-new-receipt-payment"><Plus size={16} />Start new receipt</Link>
   </Sheet>;
 }

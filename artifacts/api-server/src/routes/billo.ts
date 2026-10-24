@@ -2,7 +2,7 @@ import { Router, type IRouter, type ErrorRequestHandler } from "express";
 import { rateLimit } from "express-rate-limit";
 import { pool } from "@workspace/db";
 import { CreateBillBody, JoinBillBody, ChangeBillBody, ScanReceiptBody, GetBillResponse } from "@workspace/api-zod";
-import { BillError, type BillState, view, change, requireThat, invalidate } from "../lib/billo-domain";
+import { BillError, type BillState, view, change, requireThat, invalidate, setupReady } from "../lib/billo-domain";
 import { newId, memberId, findBill, identify, session, addSession, mutate } from "../lib/billo-store";
 import { extractReceipt } from "../lib/billo-ocr";
 
@@ -44,7 +44,7 @@ router.post("/billo/bills", createLimiter, async (req, res): Promise<void> => {
   requireThat(!zelle || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(zelle) || /^(?:1)?\d{10}$/.test(zelle.replace(/[+()\s.-]/g, "")), "Enter a valid Zelle email or US phone number.");
   const id = newId(), me = memberId();
   const state: BillState = {
-    id, title, payerId: me, status: "open", revision: 0, splitMode: "itemized", venmo, zelle, scans: [],
+    id, title, payerId: me, status: "open", revision: 0, splitMode: "itemized", receiptConfirmed: false, venmo, zelle, scans: [],
     receipt: { title, items: [], taxCents: 0, tipMode: "percent", tipValue: 2000, totalCents: 0, adjustmentCents: 0, warnings: [] },
     participants: [{ id: me, name, finished: false, paid: false }],
   };
@@ -54,6 +54,7 @@ router.post("/billo/bills", createLimiter, async (req, res): Promise<void> => {
 });
 router.get("/billo/bills/:id/invite", async (req, res): Promise<void> => {
   const state = await findBill(idOf(req.params.id!));
+  requireThat(state.status === "closed" || setupReady(state), "The payer must confirm the receipt and tip before inviting friends. Try again shortly.", 409);
   res.json({ title: state.title, status: state.status });
 });
 router.get("/billo/bills/:id", async (req, res): Promise<void> => {
@@ -71,6 +72,7 @@ router.post("/billo/bills/:id/join", joinLimiter, async (req, res): Promise<void
   const me = memberId();
   const state = await mutate(id, s => {
     requireThat(s.status === "open", "This bill is closed.", 409);
+    requireThat(setupReady(s), "The payer must confirm the receipt and tip before you can join. Try again shortly.", 409);
     requireThat(s.participants.length < 30, "This bill has reached its 30-person limit.");
     requireThat(!s.participants.some(p => p.name.toLowerCase() === parsed.data.name.trim().toLowerCase()), "That name is taken. Add an initial to distinguish yourself.");
     s.participants.push({ id: me, name: parsed.data.name.trim(), finished: false, paid: false });
@@ -96,6 +98,9 @@ router.post("/billo/bills/:id/scan", async (req, res): Promise<void> => {
     s.scans = s.scans.filter(t => Date.now() - t < 3600000);
     requireThat(s.scans.length < 5, "Scanning is limited to five attempts per bill per hour. You can still enter the receipt manually.", 429);
     s.scans.push(Date.now());
+    s.receiptConfirmed = false;
+    invalidate(s);
+    s.revision++;
   });
   res.json(await extractReceipt(parsed.data.dataUrl));
 });

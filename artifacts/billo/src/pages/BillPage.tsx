@@ -8,27 +8,38 @@ import { ItemsView, BreakdownLines } from '@/components/ItemsView';
 import { ReceiptEntry } from '@/components/ReceiptEntry';
 import { ReceiptEditor } from '@/components/ReceiptEditor';
 import { ReceiptView } from '@/components/ReceiptView';
-import { SplitSheet } from '@/components/SplitSheet';
+import { ClaimSheet } from '@/components/ClaimSheet';
 import { ShareView } from '@/components/ShareView';
 import { GroupView } from '@/components/GroupView';
 import { CloseSheet } from '@/components/CloseSheet';
 import { PaymentSheet } from '@/components/PaymentSheet';
 import { Sheet } from '@/components/Sheet';
 import { useBillActions } from '@/hooks/use-bill-actions';
-import { errorMessage, errorStatus, money } from '@/lib/billo';
+import { billReady, errorMessage, errorStatus, money } from '@/lib/billo';
 
 type Tab = 'items' | 'receipt' | 'share' | 'group';
 type Modal = 'close' | 'payment' | 'breakdown' | null;
 
 export default function BillPage({ params }: { params: { id: string } }) {
+  return <BillSession key={params.id} params={params} />;
+}
+
+function BillSession({ params }: { params: { id: string } }) {
   const id = params.id;
   const [toast, setToast] = useToastMessage();
-  const query = useGetBill(id, { query: { queryKey: getGetBillQueryKey(id), refetchInterval: 1500, retry: false, refetchOnWindowFocus: true } });
+  const [joining, setJoining] = useState(false);
+  const query = useGetBill(id, { query: {
+    queryKey: getGetBillQueryKey(id), enabled: !joining, retry: false,
+    refetchInterval: q => q.state.data && errorStatus(q.state.error) !== 401 ? 1500 : false,
+    refetchOnWindowFocus: q => !!q.state.data && errorStatus(q.state.error) !== 401,
+    refetchOnReconnect: q => !!q.state.data && errorStatus(q.state.error) !== 401,
+  } });
   const status = query.error ? errorStatus(query.error) : undefined;
   const bill = query.data;
-  const needsJoin = status === 401;
+  const needsJoin = joining || status === 401;
+  useEffect(() => { if (status === 401) setJoining(true); }, [status]);
   let body;
-  if (needsJoin) body = <JoinScreen id={id} />;
+  if (needsJoin) body = <JoinScreen id={id} onJoined={() => setJoining(false)} />;
   else if (bill) body = <BillScreen key={bill.id} bill={bill} notify={setToast} stale={query.isError} />;
   else if (query.isLoading) body = <SkeletonPage />;
   else body = <div className="sp-card sp-pad sp-stack sp-center sp-content"><div className="sp-state-symbol"><Info size={26} /></div>
@@ -43,12 +54,17 @@ export default function BillPage({ params }: { params: { id: string } }) {
 
 function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: string) => void; stale: boolean }) {
   const isHost = bill.meId === bill.payerId, closed = bill.status === 'closed';
-  const [tab, setTab] = useState<Tab>(isHost && !bill.receipt.items.length ? 'receipt' : 'items');
+  const [selectedTab, setTab] = useState<Tab>(isHost && !billReady(bill) ? 'receipt' : 'items');
   const [modal, setModal] = useState<Modal>(null);
   const [splitItemId, setSplitItemId] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ draft: ReceiptDraft; source: string } | null>(null);
+  const reviewRequired = !closed && (!bill.receiptConfirmed || !!editing);
+  const tab: Tab = reviewRequired ? 'receipt' : selectedTab;
   const { send, pending } = useBillActions(bill, notify);
   const shown = useRef(false);
+  useEffect(() => {
+    if (reviewRequired) { setSplitItemId(null); setModal(null); }
+  }, [reviewRequired]);
 
   useEffect(() => {
     if (closed && !isHost && !shown.current) { shown.current = true; setSplitItemId(null); setModal('payment'); }
@@ -71,12 +87,20 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
     { tab: 'group', label: 'Group', icon: Users },
   ];
   const titles: Record<Tab, [string, string]> = {
-    items: closed ? ['Your items', 'Amounts are locked.'] : bill.splitMode === 'equal' ? ['Even split', 'Everyone pays the same share.'] : ['Choose your items', ''],
-    receipt: editing ? ['Review receipt', 'Check every line before saving.'] : isHost && !bill.receipt.items.length ? ['Add the receipt', 'Scan it or type it in.'] : ['Receipt', ''],
+    items: closed ? ['Your items', 'Amounts are locked.'] : ['Claim your share', ''],
+    receipt: editing ? ['Review receipt', 'Check every line before saving.'] : isHost && !bill.receipt.items.length ? ['Add the receipt', 'Scan it or type it in.'] : isHost && !closed && !billReady(bill) ? ['Set split methods', 'Edit and pick $, %, or # per item.'] : ['Receipt', ''],
     share: ['Invite friends', 'Everyone at the table joins with this link.'],
     group: closed ? ['Group & payments', 'Who has reported paying.'] : ['Group', 'Who is in and who is done.'],
   };
   const payerName = bill.participants.find(p => p.isPayer)?.name ?? '';
+
+  if (!isHost && reviewRequired) return <>
+    <Topbar context={bill.title} /><OfflineBanner stale={stale} />
+    <div className="sp-layout" style={{ display: 'block', maxWidth: 680 }}><main className="sp-card sp-pad sp-stack">
+      <LockKeyhole size={24} /><h1>Waiting for the payer</h1>
+      <p>The receipt and tip need to be confirmed before anyone can choose items.</p>
+    </main></div>
+  </>;
 
   return <>
     <Topbar context={<>{bill.title}{closed && <> · <LockKeyhole size={13} style={{ display: 'inline', verticalAlign: '-1px' }} /> Closed</>}</>} />
@@ -84,7 +108,7 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
     <div className="sp-layout">
       <aside className="sp-rail">
         <div className="sp-restaurant"><Utensils size={25} /><div><h3>{bill.title}</h3><p className="sp-small sp-muted">{payerName} paid · {bill.participants.length} {bill.participants.length === 1 ? 'person' : 'people'}</p></div></div>
-        <nav aria-label="Bill navigation">{nav.map(({ tab: t, label, icon: Icon }) => <button key={t} data-testid={`nav-${t}`} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}><Icon size={18} />{label}</button>)}</nav>
+        <nav aria-label="Bill navigation">{nav.map(({ tab: t, label, icon: Icon }) => <button key={t} data-testid={`nav-${t}`} disabled={reviewRequired && t !== 'receipt'} title={reviewRequired && t !== 'receipt' ? 'Confirm the receipt and tip first' : undefined} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}><Icon size={18} />{label}</button>)}</nav>
         <p className="sp-rail-note">{closed ? `Closed · ${money(bill.outstandingCents)} still owed` : 'Updates live as people choose.'}</p>
       </aside>
       <main className="sp-main">
@@ -92,19 +116,20 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
           <div className="sp-heading">
             <h1>{titles[tab][0]}</h1>{titles[tab][1] && <p>{titles[tab][1]}</p>}
           </div>
-          <nav className="sp-mobile-tabs" aria-label="Bill navigation">{(['items', 'receipt', 'group'] as Tab[]).map((t, i) => <button key={t} data-testid={`tab-${t}`} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}>{['Items', 'Receipt', 'Group'][i]}</button>)}</nav>
+          <nav className="sp-mobile-tabs" aria-label="Bill navigation">{(['items', 'receipt', 'share', 'group'] as Tab[]).map((t, i) => <button key={t} data-testid={`tab-${t}`} disabled={reviewRequired && t !== 'receipt'} title={reviewRequired && t !== 'receipt' ? 'Confirm the receipt and tip first' : undefined} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}>{['Items', 'Receipt', 'Invite', 'Group'][i]}</button>)}</nav>
+          {reviewRequired && <p className="sp-notice" style={{ marginBottom: 16 }} data-testid="status-receipt-review"><LockKeyhole size={16} />Confirm the receipt and tip to unlock items, invites, and the group.</p>}
           {tab === 'items' && <ItemsView bill={bill} send={send} pending={pending} onSplit={(item: BillItem) => setSplitItemId(item.id)} onBreakdown={() => setModal('breakdown')} onPrimary={primary} onAddReceipt={() => go('receipt')} />}
           {tab === 'receipt' && (editing
             ? <ReceiptEditor key={editing.source + editing.draft.items.length} bill={bill} draft={editing.draft} source={editing.source} send={send} pending={pending} onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); go('share'); }} />
             : isHost && !closed && !bill.receipt.items.length ? <ReceiptEntry bill={bill} onDraft={(draft, source) => setEditing({ draft, source })} />
             : <ReceiptView bill={bill} canEdit={isHost && !closed} onEdit={() => setEditing({ draft: bill.receipt, source: 'Saved receipt' })} />)}
-          {tab === 'share' && <ShareView bill={bill} notify={notify} />}
+          {tab === 'share' && <ShareView bill={bill} notify={notify} onSetup={() => go('receipt')} />}
           {tab === 'group' && <GroupView bill={bill} send={send} pending={pending} onClose={() => setModal('close')} onPay={() => setModal('payment')} />}
         </div>
       </main>
     </div>
-    {splitItem && !closed && <SplitSheet key={splitItem.id} bill={bill} item={splitItem} send={send} pending={pending} onClose={() => setSplitItemId(null)} />}
-    {modal === 'close' && isHost && !closed && <CloseSheet bill={bill} send={send} pending={pending} onClose={() => setModal(null)} />}
+    {splitItem && !closed && !reviewRequired && <ClaimSheet key={splitItem.id} bill={bill} item={splitItem} send={send} pending={pending} onClose={() => setSplitItemId(null)} />}
+    {modal === 'close' && isHost && !closed && !reviewRequired && <CloseSheet bill={bill} send={send} pending={pending} onClose={() => setModal(null)} />}
     {modal === 'payment' && closed && !isHost && <PaymentSheet bill={bill} send={send} pending={pending} notify={notify} onClose={() => setModal(null)} />}
     {modal === 'breakdown' && <Sheet title={closed ? 'Your final share' : 'Your estimated share'} onClose={() => setModal(null)}><BreakdownLines bill={bill} /></Sheet>}
   </>;

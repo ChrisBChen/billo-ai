@@ -6,20 +6,29 @@ import { getGetBillQueryKey, getGetInviteQueryKey, useGetInvite, useJoinBill } f
 import { Spinner } from '@/components/Chrome';
 import { errorMessage, errorStatus } from '@/lib/billo';
 
-export function JoinScreen({ id }: { id: string }) {
+export function JoinScreen({ id, onJoined }: { id: string; onJoined: () => void }) {
   const qc = useQueryClient();
-  const invite = useGetInvite(id, { query: { queryKey: getGetInviteQueryKey(id), retry: 1 } });
+  const invite = useGetInvite(id, { query: {
+    queryKey: getGetInviteQueryKey(id),
+    retry: (count, error) => count < 1 && (errorStatus(error) === undefined || errorStatus(error)! >= 500),
+    refetchOnWindowFocus: false, refetchOnReconnect: false,
+  } });
   const join = useJoinBill();
   const [name, setName] = useState('');
   function submit(e: FormEvent) {
     e.preventDefault();
     if (!name.trim() || join.isPending) return;
-    join.mutate({ id, data: { name: name.trim() } }, { onSuccess: bill => qc.setQueryData(getGetBillQueryKey(id), bill) });
+    join.mutate({ id, data: { name: name.trim() } }, { onSuccess: async bill => {
+      await qc.cancelQueries({ queryKey: getGetBillQueryKey(id) });
+      qc.setQueryData(getGetBillQueryKey(id), bill);
+      onJoined();
+    } });
   }
   if (invite.isLoading) return <div className="sp-stack sp-content"><div className="sp-skeleton" style={{ height: 34, width: '55%' }} /><div className="sp-skeleton" style={{ height: 220 }} /></div>;
-  if (invite.isError) {
+  if (invite.isError && !invite.data) {
     const missing = errorStatus(invite.error) === 404;
-    return <div className="sp-card sp-pad sp-stack sp-content sp-center"><div className="sp-state-symbol"><Info size={26} /></div><h2>{missing ? 'This bill link does not exist' : 'Could not load this invite'}</h2><p className="sp-muted">{missing ? 'Check the link with whoever paid.' : errorMessage(invite.error)}</p>{missing ? <Link href="/" className="sp-button">Start a new bill</Link> : <button className="sp-button" data-testid="button-retry-invite" onClick={() => invite.refetch()}>Try again</button>}</div>;
+    const reviewing = errorStatus(invite.error) === 409;
+    return <div className="sp-card sp-pad sp-stack sp-content sp-center"><div className="sp-state-symbol">{reviewing ? <LockKeyhole size={26} /> : <Info size={26} />}</div><h2>{missing ? 'This bill link does not exist' : reviewing ? 'Waiting for payer confirmation' : 'Could not load this invite'}</h2><p className="sp-muted">{missing ? 'Check the link with whoever paid.' : errorMessage(invite.error)}</p>{missing ? <Link href="/" className="sp-button">Start a new bill</Link> : <button className="sp-button" data-testid="button-retry-invite" onClick={() => invite.refetch()}>{reviewing ? 'Check again' : 'Try again'}</button>}</div>;
   }
   const closed = invite.data?.status === 'closed';
   return <div className="sp-content">

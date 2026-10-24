@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Divide, Loader2, Moon, Sun, WifiOff } from 'lucide-react';
+import { Link } from 'wouter';
 import { initial } from '@/lib/billo';
 
 type Theme = 'light' | 'dark';
@@ -39,7 +40,7 @@ export function ThemeToggle() {
   return <button type="button" className="sp-theme-toggle" onClick={toggle} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} aria-pressed={dark} title={dark ? 'Light mode' : 'Dark mode'} data-testid="button-theme-toggle">{dark ? <Sun size={18} /> : <Moon size={18} />}</button>;
 }
 export function Topbar({ context }: { context?: ReactNode }) {
-  return <header className="sp-topbar"><div className="sp-brand"><span className="sp-brand-mark"><Divide size={20} strokeWidth={2.5} /></span>Billo</div><div className="sp-topbar-end">{context && <span className="sp-context">{context}</span>}<ThemeToggle /></div></header>;
+  return <header className="sp-topbar"><Link href="/" className="sp-brand" aria-label="Billo home, start a new receipt" data-testid="link-home" style={{ color: 'inherit', textDecoration: 'none' }}><span className="sp-brand-mark"><Divide size={20} strokeWidth={2.5} /></span>Billo</Link><div className="sp-topbar-end">{context && <span className="sp-context">{context}</span>}<ThemeToggle /></div></header>;
 }
 export function Avatar({ name, index }: { name: string; index: number }) {
   return <span className={`sp-avatar sp-a${index % 4}`} aria-hidden="true">{initial(name)}</span>;
