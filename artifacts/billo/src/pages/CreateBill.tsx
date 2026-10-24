@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Info, ReceiptText, ScanLine, Users } from 'lucide-react';
+import { ArrowRight, Info, ReceiptText, Users } from 'lucide-react';
 import { getGetBillQueryKey, useCreateBill } from '@workspace/api-client-react';
 import { OfflineBanner, Spinner, Topbar } from '@/components/Chrome';
 import { errorMessage } from '@/lib/billo';
@@ -48,7 +48,7 @@ export default function CreateBill() {
           <p className="sp-small sp-muted">Anyone with the link can join this bill by name.</p>
         </form>
         <div className="sp-stack" style={{ gap: 14, marginTop: 28 }}>
-          {[{ icon: ScanLine, t: 'Scan or type the receipt', d: 'The photo is read once and discarded.' }, { icon: Users, t: 'Friends tap what they had', d: 'Share items equally, by dollars, percent, or units.' }, { icon: ReceiptText, t: 'Close and get paid back', d: 'Tax and tip follow each person’s items.' }].map(({ icon: Icon, t, d }) => <div key={t} className="sp-row" style={{ alignItems: 'flex-start' }}><Icon size={22} color="var(--sp-accent)" /><div><h3>{t}</h3><p className="sp-small sp-muted">{d}</p></div></div>)}
+          {[{ icon: Users, t: 'Friends tap what they had', d: 'Share items equally, by dollars, percent, or units.' }, { icon: ReceiptText, t: 'Close and get paid back', d: 'Tax and tip follow each person’s items.' }].map(({ icon: Icon, t, d }) => <div key={t} className="sp-row" style={{ alignItems: 'flex-start' }}><Icon size={22} color="var(--sp-accent)" /><div><h3>{t}</h3><p className="sp-small sp-muted">{d}</p></div></div>)}
         </div>
       </main>
     </div>
