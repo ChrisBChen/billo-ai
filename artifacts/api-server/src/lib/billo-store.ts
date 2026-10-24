@@ -17,7 +17,13 @@ export async function findBill(id: string): Promise<BillState> {
   const result = await pool.query("SELECT state FROM billo_bills WHERE id=$1", [id]);
   if (!result.rowCount) throw new BillError(404, "Bill not found.");
   const state: BillState = result.rows[0].state;
-  return state.status === "open" && state.selectionVersion !== 1 ? mutate(id, () => {}) : state;
+  return !state.shareCode || (state.status === "open" && state.selectionVersion !== 1) ? mutate(id, () => {}) : state;
+}
+export async function resolveShareCode(code: string): Promise<BillState> {
+  if (!/^[A-Za-z0-9_-]{12}$/.test(code)) throw new BillError(404, "This bill link does not exist.");
+  const result = await pool.query("SELECT id FROM billo_bills WHERE state->>'shareCode'=$1", [code]);
+  if (result.rowCount !== 1) throw new BillError(404, "This bill link does not exist.");
+  return findBill(result.rows[0].id);
 }
 export async function identify(req: Request, id: string): Promise<string | null> {
   const token = req.cookies?.[cookieName(id)];
@@ -39,6 +45,17 @@ export async function mutate(id: string, fn: (s: BillState) => void): Promise<Bi
     if (!result.rowCount) throw new BillError(404, "Bill not found.");
     const state: BillState = result.rows[0].state;
     upgradeSelections(state);
+    if (!state.shareCode) {
+      // 72 random bits; serialize collision checks across processes without
+      // changing existing bill IDs, session cookies, or database table schemas.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const code = randomBytes(9).toString("base64url");
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`billo-share:${code}`]);
+        const existing = await client.query("SELECT 1 FROM billo_bills WHERE state->>'shareCode'=$1 LIMIT 1", [code]);
+        if (!existing.rowCount) { state.shareCode = code; break; }
+      }
+      if (!state.shareCode) throw new BillError(503, "Could not create an invite link. Please try again.");
+    }
     fn(state);
     await client.query("UPDATE billo_bills SET state=$2::jsonb WHERE id=$1", [id, JSON.stringify(state)]);
     await client.query("COMMIT");

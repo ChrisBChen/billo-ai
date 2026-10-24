@@ -63,7 +63,7 @@ export function errorMessage(e: unknown, fallback = 'Something went wrong. Try a
   if (typeof navigator !== 'undefined' && !navigator.onLine) return 'You appear to be offline. Reconnect and try again.';
   return fallback;
 }
-export const billUrl = (id: string) => window.location.origin + import.meta.env.BASE_URL.replace(/\/$/, '') + '/b/' + id;
+export const billUrl = (id: string, shareCode?: string) => window.location.origin + import.meta.env.BASE_URL.replace(/\/$/, '') + (shareCode ? '/s/' + shareCode : '/b/' + id);
 export const newId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2));
 
 export const billReady = (bill: BillView) => bill.receiptConfirmed && bill.splitMode === 'itemized' && bill.receipt.items.length > 0 && bill.receipt.items.every(i => i.mode === 'equal');

@@ -11,6 +11,11 @@ import type { ReceiptDraft } from './receiptDraft';
 
 export interface BillView {
   id: string;
+  /**
+     * Persistent native invite code; legacy full-ID links remain valid.
+     * @pattern ^[A-Za-z0-9_-]{12}$
+     */
+  shareCode?: string;
   title: string;
   status: BillViewStatus;
   revision: number;

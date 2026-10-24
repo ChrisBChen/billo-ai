@@ -4,6 +4,7 @@ import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { ErrorBoundary } from '@/components/error-boundary';
 import CreateBill from '@/pages/CreateBill';
 import BillPage from '@/pages/BillPage';
+import ShortBillPage from '@/pages/ShortBillPage';
 import NotFound from '@/pages/not-found';
 import './billo.css';
 
@@ -15,6 +16,7 @@ function Router() {
       <Switch>
         <Route path="/" component={CreateBill} />
         <Route path="/b/:id">{(params: { id: string }) => <BillPage params={params} />}</Route>
+        <Route path="/s/:code">{(params: { code: string }) => <ShortBillPage params={params} />}</Route>
         <Route component={NotFound} />
       </Switch>
     </RoutedErrorBoundary>

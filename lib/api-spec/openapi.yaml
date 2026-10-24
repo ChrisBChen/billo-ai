@@ -14,6 +14,17 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/HealthStatus" }
+  /billo/links/{code}:
+    get:
+      operationId: resolveBillLink
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string, pattern: "^[A-Za-z0-9_-]{12}$" } }
+      responses:
+        "200":
+          description: Canonical bill ID for a native short invite; normal bill permissions still apply
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BillLink" }
   /billo/bills:
     post:
       operationId: createBill
@@ -100,6 +111,11 @@ paths:
               schema: { $ref: "#/components/schemas/ReceiptDraft" }
 components:
   schemas:
+    BillLink:
+      type: object
+      required: [id]
+      properties:
+        id: { type: string }
     HealthStatus:
       type: object
       required: [status]
@@ -196,6 +212,7 @@ components:
       required: [id, title, status, revision, meId, payerId, splitMode, receipt, receiptConfirmed, participants, unclaimedItemIds, venmo, zelle, venmoUrl, venmoWebUrl, paymentNote, outstandingCents]
       properties:
         id: { type: string }
+        shareCode: { type: string, pattern: "^[A-Za-z0-9_-]{12}$", description: "Persistent native invite code; legacy full-ID links remain valid." }
         title: { type: string }
         status: { type: string, enum: [open, closed] }
         revision: { type: integer }

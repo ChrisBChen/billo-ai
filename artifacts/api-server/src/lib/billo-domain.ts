@@ -8,7 +8,7 @@ export type BillState = {
   id: string; title: string; payerId: string; status: "open" | "closed";
   revision: number; splitMode: "equal" | "itemized"; receipt: ReceiptDraft;
   participants: Member[]; venmo: string; zelle: string;
-  scans: number[]; finalParticipants?: Participant[]; receiptRevision?: number; receiptConfirmed?: boolean; selectionVersion?: number;
+  scans: number[]; finalParticipants?: Participant[]; receiptRevision?: number; receiptConfirmed?: boolean; selectionVersion?: number; shareCode?: string;
 };
 export function requireThat(condition: unknown, message: string, status = 400): asserts condition {
   if (!condition) throw new BillError(status, message);
@@ -98,7 +98,7 @@ export function view(s: BillState, meId: string): BillView {
   const canPay = s.status === "closed" && meId !== s.payerId && mine.totalCents > 0 && !!s.venmo;
   const params = new URLSearchParams({ txn: "pay", recipients: s.venmo, amount: (mine.totalCents / 100).toFixed(2), note: paymentNote });
   return {
-    id: s.id, title: s.title, payerId: s.payerId, meId, status: s.status,
+    id: s.id, shareCode: s.shareCode, title: s.title, payerId: s.payerId, meId, status: s.status,
     revision: s.revision, splitMode: s.splitMode, receipt: s.receipt, receiptConfirmed: s.status === "closed" || setupReady(s), participants,
     unclaimedItemIds: unclaimedItems(s).map(i => i.id), venmo: s.venmo, zelle: s.zelle, paymentNote,
     venmoUrl: canPay ? `venmo://paycharge?${params}` : "",

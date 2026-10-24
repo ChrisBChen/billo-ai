@@ -12,6 +12,18 @@ export const HealthCheckResponse = zod.object({
 })
 
 
+export const resolveBillLinkPathCodeRegExp = new RegExp('^[A-Za-z0-9_-]{12}$');
+
+
+export const ResolveBillLinkParams = zod.object({
+  "code": zod.coerce.string().regex(resolveBillLinkPathCodeRegExp)
+})
+
+export const ResolveBillLinkResponse = zod.object({
+  "id": zod.string()
+})
+
+
 export const createBillBodyNameMax = 40;
 
 export const createBillBodyTitleMax = 100;
@@ -29,6 +41,7 @@ export const CreateBillBody = zod.object({
   "zelle": zod.string().max(createBillBodyZelleMax).optional()
 })
 
+export const createBillResponseShareCodeRegExp = new RegExp('^[A-Za-z0-9_-]{12}$');
 export const createBillResponseReceiptTitleMax = 100;
 
 export const createBillResponseReceiptItemsItemNameMax = 120;
@@ -61,6 +74,7 @@ export const createBillResponseReceiptTotalCentsMax = 10000000;
 
 export const CreateBillResponse = zod.object({
   "id": zod.string(),
+  "shareCode": zod.string().regex(createBillResponseShareCodeRegExp).optional().describe('Persistent native invite code; legacy full-ID links remain valid.'),
   "title": zod.string(),
   "status": zod.enum(['open', 'closed']),
   "revision": zod.int(),
@@ -132,6 +146,7 @@ export const JoinBillBody = zod.object({
   "name": zod.string().min(1).max(joinBillBodyNameMax)
 })
 
+export const joinBillResponseShareCodeRegExp = new RegExp('^[A-Za-z0-9_-]{12}$');
 export const joinBillResponseReceiptTitleMax = 100;
 
 export const joinBillResponseReceiptItemsItemNameMax = 120;
@@ -164,6 +179,7 @@ export const joinBillResponseReceiptTotalCentsMax = 10000000;
 
 export const JoinBillResponse = zod.object({
   "id": zod.string(),
+  "shareCode": zod.string().regex(joinBillResponseShareCodeRegExp).optional().describe('Persistent native invite code; legacy full-ID links remain valid.'),
   "title": zod.string(),
   "status": zod.enum(['open', 'closed']),
   "revision": zod.int(),
@@ -217,6 +233,7 @@ export const GetBillParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getBillResponseShareCodeRegExp = new RegExp('^[A-Za-z0-9_-]{12}$');
 export const getBillResponseReceiptTitleMax = 100;
 
 export const getBillResponseReceiptItemsItemNameMax = 120;
@@ -249,6 +266,7 @@ export const getBillResponseReceiptTotalCentsMax = 10000000;
 
 export const GetBillResponse = zod.object({
   "id": zod.string(),
+  "shareCode": zod.string().regex(getBillResponseShareCodeRegExp).optional().describe('Persistent native invite code; legacy full-ID links remain valid.'),
   "title": zod.string(),
   "status": zod.enum(['open', 'closed']),
   "revision": zod.int(),
@@ -377,6 +395,7 @@ export const ChangeBillBody = zod.object({
   "paid": zod.boolean().optional()
 })
 
+export const changeBillResponseShareCodeRegExp = new RegExp('^[A-Za-z0-9_-]{12}$');
 export const changeBillResponseReceiptTitleMax = 100;
 
 export const changeBillResponseReceiptItemsItemNameMax = 120;
@@ -409,6 +428,7 @@ export const changeBillResponseReceiptTotalCentsMax = 10000000;
 
 export const ChangeBillResponse = zod.object({
   "id": zod.string(),
+  "shareCode": zod.string().regex(changeBillResponseShareCodeRegExp).optional().describe('Persistent native invite code; legacy full-ID links remain valid.'),
   "title": zod.string(),
   "status": zod.enum(['open', 'closed']),
   "revision": zod.int(),

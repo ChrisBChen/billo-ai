@@ -23,7 +23,7 @@ export function ItemsView({ bill, send, pending, onBreakdown, onPrimary, onAddRe
   const lines = me ? <><div><span>Items</span><span className="sp-money">{money(me.itemCents)}</span></div><div><span>Tax</span><span className="sp-money">{money(me.taxCents)}</span></div><div><span>Tip{bill.receipt.tipMode === 'percent' ? ` (${bill.receipt.tipValue / 100}%)` : ''}</span><span className="sp-money">{money(me.tipCents)}</span></div>{me.adjustmentCents !== 0 && <div><span>Total adjustment</span><span className="sp-money">{money(me.adjustmentCents)}</span></div>}</> : null;
 
   return <>
-    {finished && !closed && <div className="sp-notice" style={{ marginBottom: 16 }} data-testid="status-waiting"><Clock3 size={17} />You confirmed. Waiting for {findPerson(bill, bill.payerId)?.name ?? 'the payer'} to close the bill.</div>}
+    {finished && !closed && <div className="sp-notice" style={{ marginBottom: 16 }} data-testid="status-waiting"><Clock3 size={17} />You confirmed. Waiting for {findPerson(bill, bill.payerId)?.name ?? 'the payer'}{isHost ? ' (you)' : ''} to close the bill.</div>}
     {closed && <div className="sp-notice" style={{ marginBottom: 16 }}><LockKeyhole size={17} />This bill is closed. Amounts are final.</div>}
     <div className="sp-selection-grid">
       <div>

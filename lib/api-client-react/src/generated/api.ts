@@ -26,6 +26,7 @@ import type {
 import type {
   BillChange,
   BillInput,
+  BillLink,
   BillView,
   HealthStatus,
   Invite,
@@ -144,6 +145,101 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getHealthCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getResolveBillLinkUrl = (code: string,) => {
+
+
+
+
+  return `/api/billo/links/${code}`
+}
+
+export const resolveBillLink = async (code: string, options?: Parameters<typeof customFetch>[1]): Promise<BillLink> => {
+
+  return customFetch<BillLink>(getResolveBillLinkUrl(code),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getResolveBillLinkQueryKey = (code: string,) => {
+    return [
+    `/api/billo/links/${code}`
+    ] as const;
+    }
+
+
+export const getResolveBillLinkQueryOptions = <TData = Awaited<ReturnType<typeof resolveBillLink>>, TError = ErrorType<unknown>>(code: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resolveBillLink>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getResolveBillLinkQueryKey(code);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof resolveBillLink>>> = ({ signal }) => resolveBillLink(code, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: code !== null && code !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof resolveBillLink>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ResolveBillLinkQueryResult = NonNullable<Awaited<ReturnType<typeof resolveBillLink>>>
+export type ResolveBillLinkQueryError = ErrorType<unknown>
+
+
+export function useResolveBillLink<TData = Awaited<ReturnType<typeof resolveBillLink>>, TError = ErrorType<unknown>>(
+ code: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof resolveBillLink>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof resolveBillLink>>,
+          TError,
+          Awaited<ReturnType<typeof resolveBillLink>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useResolveBillLink<TData = Awaited<ReturnType<typeof resolveBillLink>>, TError = ErrorType<unknown>>(
+ code: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resolveBillLink>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof resolveBillLink>>,
+          TError,
+          Awaited<ReturnType<typeof resolveBillLink>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useResolveBillLink<TData = Awaited<ReturnType<typeof resolveBillLink>>, TError = ErrorType<unknown>>(
+ code: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resolveBillLink>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useResolveBillLink<TData = Awaited<ReturnType<typeof resolveBillLink>>, TError = ErrorType<unknown>>(
+ code: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resolveBillLink>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getResolveBillLinkQueryOptions(code,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

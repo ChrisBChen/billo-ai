@@ -4,6 +4,10 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+export interface BillLink {
+  id: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -212,6 +216,11 @@ export const BillViewSplitMode = {
 
 export interface BillView {
   id: string;
+  /**
+     * Persistent native invite code; legacy full-ID links remain valid.
+     * @pattern ^[A-Za-z0-9_-]{12}$
+     */
+  shareCode?: string;
   title: string;
   status: BillViewStatus;
   revision: number;

@@ -4,7 +4,7 @@ import type { BillView } from '@workspace/api-client-react';
 import { billReady, billUrl, money } from '@/lib/billo';
 
 export function ShareView({ bill, notify, onSetup }: { bill: BillView; notify: (m: string) => void; onSetup: () => void }) {
-  const url = billUrl(bill.id);
+  const url = billUrl(bill.id, bill.shareCode);
   async function copy() {
     try { await navigator.clipboard.writeText(url); notify('Link copied'); }
     catch { notify('Copy unavailable. Select the link text instead.'); }

@@ -32,13 +32,12 @@ export function JoinScreen({ id, onJoined }: { id: string; onJoined: () => void 
   }
   const closed = invite.data?.status === 'closed';
   return <div className="sp-content">
-    <div className="sp-heading"><span className="sp-context">You are invited</span><h1 data-testid="text-invite-title">{invite.data?.title}</h1><p>Enter your name to pick what you had. No account needed.</p></div>
+    <div className="sp-heading"><span className="sp-context">You are invited</span><h1 data-testid="text-invite-title">{invite.data?.title}</h1></div>
     <form className="sp-card sp-pad sp-stack" onSubmit={submit}>
       {closed && <div className="sp-notice warning"><LockKeyhole size={17} />This bill is already closed. Ask the payer for your amount.</div>}
       <label className="sp-field">Your name<input data-testid="input-join-name" value={name} maxLength={40} autoFocus autoComplete="given-name" onChange={e => setName(e.target.value)} placeholder="First name" /></label>
       {join.isError && <div className="sp-notice warning" role="alert"><Info size={17} />{errorMessage(join.error, 'Could not join. Try again.')}</div>}
       <button className="sp-button full" type="submit" data-testid="button-join" disabled={!name.trim() || join.isPending || closed}>{join.isPending ? <><Spinner />Joining</> : <>Join bill<ArrowRight size={18} /></>}</button>
-      <p className="sp-small sp-muted">This device remembers you for this bill.</p>
     </form>
   </div>;
 }

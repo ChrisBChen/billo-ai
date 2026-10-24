@@ -9,11 +9,11 @@ The product helps friends split a bill live while still sitting at the table, ra
 
 **How to apply:** Prioritize fast joining, shared-item selection, and clear provisional versus final amounts. The payer participates in the split too.
 
-Initial participation requires no account creation. Payments occur outside the app using the payer's Venmo or Zelle details; login is a later addition.
+Both payers and friends should have regular login rather than Google-only sign-in. Payments occur outside the app using the payer's Venmo or Zelle details.
 
-**Why:** The user explicitly specified these boundaries in the original idea.
+**Why:** The user requested login for both roles, then replaced the Google-only request with regular login. External payments remain part of the original scope.
 
-**How to apply:** Do not introduce signup gates or in-app money movement without a new request. Finishing selections must not imply verified payment.
+**How to apply:** Do not reintroduce Google-only login. Preserve the invited bill through login, and do not introduce in-app money movement. Finishing selections must not imply verified payment.
 
 The user anticipates the great majority of usage on phones and wants this product to take cues from Google or Apple native applications, with only essential explanatory copy.
 
@@ -50,3 +50,9 @@ Keep the existing OCR provider and scanning implementation unchanged unless the 
 **Why:** After discussing alternative providers, the user said to stop changing OCR and keep it as is.
 
 **How to apply:** Do not bundle an OCR replacement with splitting or receipt UI work.
+
+Short invite URLs must be native to Billo, not Bitly or another external shortening provider.
+
+**Why:** The user declined the Bitly integration and explicitly repeated that the URLs themselves should be shorter without Bitly.
+
+**How to apply:** Preserve existing full links and bill sessions. Keep development links on their own origin; do not send development bill IDs to the production database just to shorten the domain.

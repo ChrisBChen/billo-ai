@@ -3,7 +3,7 @@ import { rateLimit } from "express-rate-limit";
 import { pool } from "@workspace/db";
 import { CreateBillBody, JoinBillBody, ChangeBillBody, ScanReceiptBody, GetBillResponse } from "@workspace/api-zod";
 import { BillError, type BillState, view, change, requireThat, invalidate, setupReady } from "../lib/billo-domain";
-import { newId, memberId, findBill, identify, session, addSession, mutate } from "../lib/billo-store";
+import { newId, memberId, findBill, identify, session, addSession, mutate, resolveShareCode } from "../lib/billo-store";
 import { extractReceipt } from "../lib/billo-ocr";
 
 const router: IRouter = Router();
@@ -50,7 +50,13 @@ router.post("/billo/bills", createLimiter, async (req, res): Promise<void> => {
   };
   await pool.query("INSERT INTO billo_bills (id,state) VALUES ($1,$2::jsonb)", [id, JSON.stringify(state)]);
   await addSession(id, me, res);
-  send(res, state, me, 201);
+  send(res, await findBill(id), me, 201);
+});
+const linkLimiter = rateLimit({ windowMs: 60000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false });
+router.get("/billo/links/:code", linkLimiter, async (req, res): Promise<void> => {
+  const state = await resolveShareCode(String(req.params.code));
+  requireThat(state.status === "closed" || setupReady(state), "The payer must confirm the receipt and tip before you can join. Try again shortly.", 409);
+  res.json({ id: state.id });
 });
 router.get("/billo/bills/:id/invite", async (req, res): Promise<void> => {
   const state = await findBill(idOf(req.params.id!));

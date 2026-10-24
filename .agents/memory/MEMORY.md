@@ -1,2 +1,2 @@
-- [Bill-splitting product scope](product-scope.md) — At-table splitting, no-signup participation, payer included, and external payments.
+- [Bill-splitting product scope](product-scope.md) — At-table splitting, login direction, external payments, and native invite links.
 - [Join-form verification](join-test-verification.md) — Distinguish real remounts from native text selection; use captured invite URLs in tests.

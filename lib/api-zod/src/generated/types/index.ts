@@ -13,6 +13,7 @@ export * from './billChangeSplitMode';
 export * from './billInput';
 export * from './billItem';
 export * from './billItemMode';
+export * from './billLink';
 export * from './billView';
 export * from './billViewSplitMode';
 export * from './billViewStatus';
