@@ -90,7 +90,6 @@ function BillScreen({ bill, notify, stale }: { bill: BillView; notify: (m: strin
       <main className="sp-main">
         <div key={tab} className={`sp-page ${tab === 'items' ? 'sp-select-page' : ''}`}>
           <div className="sp-heading">
-            <div className="sp-row sp-between"><span className="sp-context">{bill.title} · {bill.participants.length} {bill.participants.length === 1 ? 'person' : 'people'}</span><button className="sp-icon" data-testid="button-heading-share" onClick={() => go('share')} aria-label="Invite friends"><Share2 size={19} /></button></div>
             <h1>{titles[tab][0]}</h1>{titles[tab][1] && <p>{titles[tab][1]}</p>}
           </div>
           <nav className="sp-mobile-tabs" aria-label="Bill navigation">{(['items', 'receipt', 'group'] as Tab[]).map((t, i) => <button key={t} data-testid={`tab-${t}`} className={tab === t ? 'active' : ''} aria-current={tab === t ? 'page' : undefined} onClick={() => go(t)}>{['Items', 'Receipt', 'Group'][i]}</button>)}</nav>
