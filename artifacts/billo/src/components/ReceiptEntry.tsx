@@ -7,6 +7,29 @@ import { errorMessage } from '@/lib/billo';
 const TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX = 8 * 1024 * 1024;
 
+// Vercel Functions reject request bodies over ~4.5 MB, so large photos are re-encoded as JPEG first.
+const SEND_LIMIT = 3_000_000;
+async function shrinkForUpload(dataUrl: string): Promise<string> {
+  if (dataUrl.length <= SEND_LIMIT) return dataUrl;
+  const img = new Image();
+  img.src = dataUrl;
+  await img.decode();
+  for (const [side, quality] of [[2200, 0.85], [1600, 0.8], [1200, 0.75]] as const) {
+    const scale = Math.min(1, side / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) break;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const out = canvas.toDataURL('image/jpeg', quality);
+    if (out.length <= SEND_LIMIT) return out;
+  }
+  throw new Error('too large');
+}
+
 export function ReceiptEntry({ bill, onDraft }: { bill: BillView; onDraft: (d: ReceiptDraft, source: string) => void }) {
   const scan = useScanReceipt();
   const camRef = useRef<HTMLInputElement>(null), fileRef = useRef<HTMLInputElement>(null);
@@ -33,12 +56,13 @@ export function ReceiptEntry({ bill, onDraft }: { bill: BillView; onDraft: (d: R
     reader.onabort = readFailed;
     reader.onload = () => {
       if (typeof reader.result !== 'string') { readFailed(); return; }
-      const dataUrl = reader.result;
-      scan.mutate({ id: bill.id, data: { dataUrl } }, {
-        onSuccess: draft => onDraft(draft, source),
-        onError: err => setProblem(errorMessage(err, 'We could not read that receipt. Try a clearer photo or enter it manually.')),
-        onSettled: () => { processingRef.current = false; setProcessing(false); },
-      });
+      shrinkForUpload(reader.result).then(dataUrl => {
+        scan.mutate({ id: bill.id, data: { dataUrl } }, {
+          onSuccess: draft => onDraft(draft, source),
+          onError: err => setProblem(errorMessage(err, 'We could not read that receipt. Try a clearer photo or enter it manually.')),
+          onSettled: () => { processingRef.current = false; setProcessing(false); },
+        });
+      }, readFailed);
     };
     try { reader.readAsDataURL(file); } catch { readFailed(); }
   }
