@@ -13,13 +13,13 @@ export async function extractReceipt(dataUrl: string, fallbackTitle?: string): P
     : match[1] === "png" ? bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
     : bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP";
   requireThat(valid, "The file is not a valid image of the selected type.");
-  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-  const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
-  if (!apiKey || !baseURL) throw new BillError(503, "Receipt scanning is unavailable. Please enter the receipt manually.");
+  const apiKey = process.env.OPENAI_API_KEY;
+  const baseURL = process.env.OPENAI_BASE_URL || undefined;
+  if (!apiKey) throw new BillError(503, "Receipt scanning is unavailable. Please enter the receipt manually.");
   const client = new OpenAI({ apiKey, baseURL, timeout: 60000, maxRetries: 1 });
   try {
     const completion = await client.chat.completions.create({
-      model: "gpt-5.4-mini",
+      model: process.env.OPENAI_RECEIPT_MODEL || "gpt-5.4-mini",
       max_completion_tokens: 6000,
       response_format: { type: "json_object" },
       messages: [

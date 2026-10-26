@@ -7,9 +7,9 @@ export const newId = () => randomBytes(18).toString("base64url");
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
 const cookieName = (id: string) => `billo_${id}`;
 export const cookieOptions = {
-  // Partitioned secure cookies also work inside an embedded app preview.
-  // JSON-only mutations plus Origin/Sec-Fetch-Site checks enforce CSRF protection.
-  httpOnly: true, secure: true, sameSite: "none" as const, partitioned: true,
+  // The app and API share one origin on Vercel, so a first-party Lax cookie suffices.
+  // JSON-only mutations plus Origin/Sec-Fetch-Site checks add CSRF protection.
+  httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const,
   path: "/api/billo", maxAge: 30 * 86400 * 1000,
 };
 export async function findBill(id: string): Promise<BillState> {

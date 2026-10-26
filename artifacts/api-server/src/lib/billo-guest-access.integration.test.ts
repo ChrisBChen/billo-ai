@@ -7,8 +7,8 @@ import { GetBillResponse } from "@workspace/api-zod";
 test("name-only access preserves bill cookies, host permissions and legacy sessions", {
   skip: process.env.RUN_DEV_GUEST_TESTS !== "1",
 }, async () => {
-  assert.ok(process.env.REPLIT_DEV_DOMAIN);
-  const base = `https://${process.env.REPLIT_DEV_DOMAIN}`, stamp = randomUUID();
+  assert.ok(process.env.BILLO_TEST_HOST, "set BILLO_TEST_HOST to the deployed host, e.g. billo.vercel.app");
+  const base = `https://${process.env.BILLO_TEST_HOST}`, stamp = randomUUID();
   const payer = new Map<string, string>(), friend = new Map<string, string>();
   let billId: string | undefined, accountId: string | undefined;
   async function request(path: string, cookies: Map<string, string>, method = "GET", body?: unknown, extra: Record<string, string> = {}) {
